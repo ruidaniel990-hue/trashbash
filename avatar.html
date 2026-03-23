@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+  <meta name="theme-color" content="#0a0e1a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Garderobe – Trash Bash</title>
+  <link rel="manifest" href="manifest.json">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg:           #0a0e1a;
+      --surface:      #111827;
+      --surface2:     #1a2332;
+      --border:       #1e3a5f;
+      --primary:      #0075be;
+      --primary-glow: rgba(0,117,190,0.4);
+      --cyan:         #00d4ff;
+      --cyan-glow:    rgba(0,212,255,0.3);
+      --yellow:       #ffcc00;
+      --yellow-glow:  rgba(255,204,0,0.35);
+      --green:        #00cc66;
+      --red:          #ff4444;
+      --text:         #e8f4fd;
+      --muted:        #6b8ca4;
+    }
+
+    html, body {
+      height: 100%;
+      font-family: 'Nunito', -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      top: -50%; left: -50%;
+      width: 200%; height: 200%;
+      background:
+        radial-gradient(circle at 50% 30%, rgba(0,117,190,0.07) 0%, transparent 55%),
+        radial-gradient(circle at 80% 80%, rgba(0,212,255,0.04) 0%, transparent 40%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── Header ── */
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(10,14,26,0.92);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+      padding: max(0.9rem, env(safe-area-inset-top)) 1.2rem 0.9rem;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .back-btn {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-size: 1rem;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      text-decoration: none;
+      flex-shrink: 0;
+      transition: all 0.2s;
+    }
+    .back-btn:hover { border-color: var(--cyan); box-shadow: 0 0 10px var(--cyan-glow); }
+
+    .header-title {
+      font-size: 1.25rem;
+      font-weight: 900;
+      color: var(--cyan);
+      text-shadow: 0 0 16px var(--cyan-glow);
+      flex: 1;
+    }
+
+    .coin-display {
+      font-size: 0.9rem;
+      font-weight: 800;
+      color: var(--yellow);
+      text-shadow: 0 0 10px var(--yellow-glow);
+      background: rgba(255,204,0,0.12);
+      border: 1px solid rgba(255,204,0,0.3);
+      border-radius: 20px;
+      padding: 5px 12px;
+      white-space: nowrap;
+    }
+
+    /* ── Main ── */
+    main {
+      position: relative;
+      z-index: 1;
+      padding: 16px 16px 110px;
+      max-width: 480px;
+      margin: 0 auto;
+    }
+
+    /* ── Avatar Preview Card ── */
+    .avatar-preview-card {
+      background: linear-gradient(135deg, #0d1f35 0%, #0a1828 100%);
+      border: 1px solid rgba(0,212,255,0.35);
+      border-radius: 24px;
+      padding: 20px;
+      margin-bottom: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      box-shadow:
+        0 0 24px rgba(0,212,255,0.12),
+        0 8px 32px rgba(0,0,0,0.4),
+        inset 0 1px 0 rgba(0,212,255,0.1);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .avatar-preview-card::after {
+      content: '';
+      position: absolute;
+      top: 0; left: 50%; transform: translateX(-50%);
+      width: 160px; height: 80px;
+      background: radial-gradient(ellipse, rgba(0,212,255,0.08) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .avatar-svg-wrap {
+      width: 120px;
+      height: 192px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      z-index: 1;
+    }
+
+    .avatar-svg-wrap svg {
+      width: 120px;
+      height: 192px;
+    }
+
+    .avatar-equipped-row {
+      display: flex;
+      gap: 6px;
+      margin-top: 12px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .equipped-chip {
+      background: rgba(0,212,255,0.08);
+      border: 1px solid rgba(0,212,255,0.2);
+      border-radius: 20px;
+      padding: 3px 10px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    /* ── Category Tabs ── */
+    .category-tabs {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      scrollbar-width: none;
+      padding-bottom: 2px;
+      margin-bottom: 14px;
+    }
+    .category-tabs::-webkit-scrollbar { display: none; }
+
+    .tab-btn {
+      flex-shrink: 0;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 7px 16px;
+      font-size: 0.8rem;
+      font-weight: 800;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: 'Nunito', sans-serif;
+      letter-spacing: 0.3px;
+    }
+    .tab-btn.active {
+      background: rgba(0,212,255,0.15);
+      border-color: var(--cyan);
+      color: var(--cyan);
+      box-shadow: 0 0 12px var(--cyan-glow);
+    }
+    .tab-btn:hover:not(.active) {
+      border-color: rgba(0,212,255,0.4);
+      color: var(--text);
+    }
+
+    /* ── Item Grid ── */
+    .item-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+
+    .item-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 12px 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      position: relative;
+      transition: all 0.2s;
+    }
+
+    .item-card.equipped {
+      border-color: var(--green);
+      background: rgba(0,204,102,0.08);
+      box-shadow: 0 0 12px rgba(0,204,102,0.2);
+    }
+    .item-card.owned {
+      border-color: var(--cyan);
+      background: rgba(0,212,255,0.06);
+    }
+    .item-card.unaffordable {
+      opacity: 0.55;
+    }
+
+    .item-badge {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      font-size: 0.6rem;
+      font-weight: 900;
+      padding: 2px 6px;
+      border-radius: 10px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+    .item-badge.on  { background: var(--green);  color: #001a0b; }
+    .item-badge.off { background: var(--cyan);   color: #001a26; }
+
+    .item-icon {
+      font-size: 1.8rem;
+      line-height: 1;
+    }
+
+    .item-color-swatch {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.2);
+      flex-shrink: 0;
+    }
+
+    .item-name {
+      font-size: 0.72rem;
+      font-weight: 800;
+      color: var(--text);
+      text-align: center;
+      line-height: 1.2;
+    }
+
+    .item-price {
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: var(--yellow);
+    }
+
+    .item-btn {
+      width: 100%;
+      border: none;
+      border-radius: 10px;
+      padding: 6px 4px;
+      font-size: 0.68rem;
+      font-weight: 900;
+      cursor: pointer;
+      font-family: 'Nunito', sans-serif;
+      transition: all 0.15s;
+      letter-spacing: 0.3px;
+    }
+    .item-btn.equip {
+      background: rgba(0,212,255,0.2);
+      border: 1px solid var(--cyan);
+      color: var(--cyan);
+    }
+    .item-btn.equip:hover {
+      background: rgba(0,212,255,0.35);
+      box-shadow: 0 0 8px var(--cyan-glow);
+    }
+    .item-btn.buy {
+      background: rgba(255,204,0,0.15);
+      border: 1px solid rgba(255,204,0,0.4);
+      color: var(--yellow);
+    }
+    .item-btn.buy:hover:not(:disabled) {
+      background: rgba(255,204,0,0.3);
+      box-shadow: 0 0 8px var(--yellow-glow);
+    }
+    .item-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    /* ── Bottom Navigation ── */
+    .bottom-nav {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      z-index: 100;
+      background: rgba(10,14,26,0.95);
+      backdrop-filter: blur(20px);
+      border-top: 1px solid var(--border);
+      padding: 10px 0 max(10px, env(safe-area-inset-bottom));
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+    }
+
+    .nav-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      cursor: pointer;
+      padding: 4px 16px;
+      border-radius: 12px;
+      transition: all 0.2s;
+      text-decoration: none;
+      color: var(--muted);
+      font-size: 0.65rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .nav-item.active { color: var(--cyan); }
+    .nav-item-icon { font-size: 1.3rem; }
+    .nav-item.active .nav-item-icon {
+      filter: drop-shadow(0 0 6px var(--cyan));
+    }
+
+    .nav-fab {
+      width: 60px; height: 60px;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--cyan) 100%);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.6rem;
+      box-shadow: 0 0 20px var(--cyan-glow), 0 4px 16px rgba(0,0,0,0.4);
+      cursor: pointer;
+      transition: all 0.2s;
+      border: 3px solid rgba(0,212,255,0.3);
+      margin-top: -24px;
+      flex-shrink: 0;
+      text-decoration: none;
+    }
+    .nav-fab:hover {
+      transform: scale(1.08);
+      box-shadow: 0 0 30px var(--cyan-glow), 0 6px 20px rgba(0,0,0,0.5);
+    }
+
+    /* ── Toast ── */
+    .toast {
+      position: fixed;
+      bottom: 90px;
+      left: 50%; transform: translateX(-50%);
+      background: rgba(0,212,255,0.15);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(0,212,255,0.3);
+      color: var(--cyan);
+      padding: 12px 22px;
+      border-radius: 50px;
+      font-size: 0.9rem;
+      font-weight: 700;
+      animation: toastIn 0.3s ease-out;
+      z-index: 2000;
+      white-space: nowrap;
+      box-shadow: 0 0 20px var(--cyan-glow);
+      pointer-events: none;
+    }
+    @keyframes toastIn {
+      from { opacity: 0; transform: translateX(-50%) translateY(20px); }
+      to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+    }
+
+    .section-label {
+      font-size: 0.72rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <a href="index.html" class="back-btn" title="Zurück">←</a>
+    <div class="header-title">Garderobe</div>
+    <div class="coin-display" id="header-coins">🪙 2250</div>
+  </header>
+
+  <main>
+
+    <!-- Avatar Preview -->
+    <div class="avatar-preview-card">
+      <div class="avatar-svg-wrap" id="avatar-preview">
+        <!-- SVG injected by JS -->
+      </div>
+      <div class="avatar-equipped-row" id="equipped-summary">
+        <!-- chips injected by JS -->
+      </div>
+    </div>
+
+    <!-- Category Tabs -->
+    <div class="section-label">Kategorie</div>
+    <div class="category-tabs" id="category-tabs">
+      <button class="tab-btn active" data-cat="skins"       onclick="switchCat('skins')">Haut</button>
+      <button class="tab-btn"        data-cat="hats"        onclick="switchCat('hats')">Hüte</button>
+      <button class="tab-btn"        data-cat="shirts"      onclick="switchCat('shirts')">Shirts</button>
+      <button class="tab-btn"        data-cat="pants"       onclick="switchCat('pants')">Hosen</button>
+      <button class="tab-btn"        data-cat="shoes"       onclick="switchCat('shoes')">Schuhe</button>
+      <button class="tab-btn"        data-cat="accessories" onclick="switchCat('accessories')">Extras</button>
+    </div>
+
+    <!-- Item Grid -->
+    <div class="item-grid" id="item-grid">
+      <!-- populated by JS -->
+    </div>
+
+  </main>
+
+  <!-- Bottom Navigation -->
+  <nav class="bottom-nav">
+    <a href="index.html" class="nav-item">
+      <div class="nav-item-icon">🏠</div>
+      Home
+    </a>
+    <a href="app.html" class="nav-item">
+      <div class="nav-item-icon">🗺️</div>
+      Karte
+    </a>
+    <div class="nav-fab" onclick="window.location.href='app.html'">🗑️</div>
+    <a href="minigame.html" class="nav-item">
+      <div class="nav-item-icon">🎮</div>
+      Spiele
+    </a>
+    <a href="dashboard.html" class="nav-item">
+      <div class="nav-item-icon">📊</div>
+      Stats
+    </a>
+  </nav>
+
+  <script src="avatar-renderer.js"></script>
+  <script>
+    // ── State ──────────────────────────────────────────────────
+    var currentCat = 'skins';
+
+    // Map category key → equipped key
+    var CAT_KEY = {
+      skins: 'skin',
+      hats:  'hat',
+      shirts: 'shirt',
+      pants:  'pants',
+      shoes:  'shoes',
+      accessories: 'accessory'
+    };
+
+    var CAT_LABEL = {
+      skins: 'Haut',
+      hats:  'Hut',
+      shirts: 'Shirt',
+      pants:  'Hose',
+      shoes:  'Schuhe',
+      accessories: 'Extra'
+    };
+
+    // ── Init ───────────────────────────────────────────────────
+    function init() {
+      renderPreview();
+      renderEquippedSummary();
+      renderGrid(currentCat);
+      updateCoinDisplay();
+    }
+
+    // ── Render avatar preview ──────────────────────────────────
+    function renderPreview() {
+      var eq = window.AvatarStore.getEquipped();
+      var el = document.getElementById('avatar-preview');
+      if (el) el.innerHTML = window.renderAvatarSVG(eq);
+    }
+
+    // ── Equipped summary chips ─────────────────────────────────
+    function renderEquippedSummary() {
+      var eq    = window.AvatarStore.getEquipped();
+      var wrap  = document.getElementById('equipped-summary');
+      if (!wrap) return;
+      var html  = '';
+      var cats  = ['skins','hats','shirts','pants','shoes','accessories'];
+      cats.forEach(function(cat) {
+        var key  = CAT_KEY[cat];
+        var id   = eq[key];
+        var list = window.AVATAR_ITEMS[cat];
+        var item = null;
+        for (var i = 0; i < list.length; i++) { if (list[i].id === id) { item = list[i]; break; } }
+        if (!item) item = list[0];
+        var icon = item.icon || '';
+        if (icon === '—') icon = '';
+        html += '<div class="equipped-chip">' + (icon ? icon + ' ' : '') + item.name + '</div>';
+      });
+      wrap.innerHTML = html;
+    }
+
+    // ── Coin display ──────────────────────────────────────────
+    function updateCoinDisplay() {
+      var el = document.getElementById('header-coins');
+      if (el) el.textContent = '🪙 ' + window.AvatarStore.getCoins();
+    }
+
+    // ── Category switch ──────────────────────────────────────
+    function switchCat(cat) {
+      currentCat = cat;
+      // Update tab active state
+      var tabs = document.querySelectorAll('.tab-btn');
+      tabs.forEach(function(btn) {
+        btn.classList.toggle('active', btn.getAttribute('data-cat') === cat);
+      });
+      renderGrid(cat);
+    }
+
+    // ── Render item grid ──────────────────────────────────────
+    function renderGrid(cat) {
+      var grid  = document.getElementById('item-grid');
+      if (!grid) return;
+      var items  = window.AVATAR_ITEMS[cat];
+      var eq     = window.AvatarStore.getEquipped();
+      var owned  = window.AvatarStore.getOwned();
+      var coins  = window.AvatarStore.getCoins();
+      var eqKey  = CAT_KEY[cat];
+      var html   = '';
+
+      items.forEach(function(item) {
+        var isEquipped   = eq[eqKey] === item.id;
+        var isOwned      = owned.indexOf(item.id) !== -1;
+        var canAfford    = coins >= item.price;
+        var isFree       = item.price === 0;
+
+        var cardClass = 'item-card';
+        if (isEquipped) cardClass += ' equipped';
+        else if (isOwned) cardClass += ' owned';
+        else if (!canAfford) cardClass += ' unaffordable';
+
+        // Icon area: color swatch for skins, emoji icon for others
+        var iconHtml = '';
+        if (cat === 'skins') {
+          iconHtml = '<div class="item-color-swatch" style="background:' + item.color + ';"></div>';
+        } else {
+          var displayIcon = (item.icon && item.icon !== '—') ? item.icon : '▪';
+          iconHtml = '<div class="item-icon">' + displayIcon + '</div>';
+          // Show color swatch for clothing items too
+          if (item.color) {
+            iconHtml += '<div class="item-color-swatch" style="background:' + item.color + '; width:20px; height:20px;"></div>';
+          }
+        }
+
+        // Badge
+        var badgeHtml = '';
+        if (isEquipped) {
+          badgeHtml = '<span class="item-badge on">AN</span>';
+        } else if (isOwned) {
+          badgeHtml = '<span class="item-badge off">✓</span>';
+        }
+
+        // Price tag
+        var priceHtml = '';
+        if (!isOwned && !isFree) {
+          priceHtml = '<div class="item-price">🪙 ' + item.price + '</div>';
+        } else if (isFree && !isOwned) {
+          priceHtml = '<div class="item-price" style="color:var(--green)">Gratis</div>';
+        }
+
+        // Action button
+        var btnHtml = '';
+        if (isEquipped) {
+          // Already on – no button needed
+        } else if (isOwned) {
+          btnHtml = '<button class="item-btn equip" onclick="doEquip(\'' + cat + '\',\'' + item.id + '\')">AUSRÜSTEN</button>';
+        } else {
+          var disabled = canAfford ? '' : ' disabled';
+          var label    = isFree ? 'NEHMEN' : '🪙 ' + item.price + ' Kaufen';
+          btnHtml = '<button class="item-btn buy"' + disabled + ' onclick="doBuy(\'' + cat + '\',\'' + item.id + '\')">' + label + '</button>';
+        }
+
+        html += '<div class="' + cardClass + '" id="card-' + item.id + '">';
+        html += badgeHtml;
+        html += iconHtml;
+        html += '<div class="item-name">' + item.name + '</div>';
+        html += priceHtml;
+        html += btnHtml;
+        html += '</div>';
+      });
+
+      grid.innerHTML = html;
+    }
+
+    // ── Buy item ──────────────────────────────────────────────
+    function doBuy(cat, itemId) {
+      var items = window.AVATAR_ITEMS[cat];
+      var item  = null;
+      for (var i = 0; i < items.length; i++) { if (items[i].id === itemId) { item = items[i]; break; } }
+      if (!item) return;
+
+      var coins = window.AvatarStore.getCoins();
+      if (coins < item.price) {
+        showToast('❌ Nicht genug Münzen!');
+        return;
+      }
+
+      // Deduct coins
+      window.AvatarStore.setCoins(coins - item.price);
+      // Add to owned
+      window.AvatarStore.addOwned(itemId);
+      // Equip it
+      var eq    = window.AvatarStore.getEquipped();
+      eq[CAT_KEY[cat]] = itemId;
+      window.AvatarStore.setEquipped(eq);
+
+      // Refresh UI
+      renderPreview();
+      renderEquippedSummary();
+      renderGrid(cat);
+      updateCoinDisplay();
+
+      var msg = item.price === 0
+        ? '✅ ' + item.name + ' ausgerüstet!'
+        : '🛍️ ' + item.name + ' gekauft & ausgerüstet!';
+      showToast(msg);
+    }
+
+    // ── Equip item ────────────────────────────────────────────
+    function doEquip(cat, itemId) {
+      var eq = window.AvatarStore.getEquipped();
+      eq[CAT_KEY[cat]] = itemId;
+      window.AvatarStore.setEquipped(eq);
+
+      renderPreview();
+      renderEquippedSummary();
+      renderGrid(cat);
+
+      var items = window.AVATAR_ITEMS[cat];
+      var item  = null;
+      for (var i = 0; i < items.length; i++) { if (items[i].id === itemId) { item = items[i]; break; } }
+      var name = item ? item.name : itemId;
+      showToast('✅ ' + name + ' ausgerüstet!');
+    }
+
+    // ── Toast ─────────────────────────────────────────────────
+    function showToast(msg) {
+      var old = document.querySelector('.toast');
+      if (old) old.remove();
+      var t = document.createElement('div');
+      t.className = 'toast';
+      t.textContent = msg;
+      document.body.appendChild(t);
+      setTimeout(function() {
+        t.style.opacity = '0';
+        t.style.transition = 'opacity 0.3s';
+        setTimeout(function() { t.remove(); }, 300);
+      }, 2500);
+    }
+
+    // ── Boot ──────────────────────────────────────────────────
+    window.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>

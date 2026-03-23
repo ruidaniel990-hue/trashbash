@@ -1,0 +1,1466 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+  <meta name="theme-color" content="#0a0e1a">
+  <title>Trash Bash – Trashpeche</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg:          #0a0e1a;
+      --surface:     #111827;
+      --surface2:    #1a2332;
+      --border:      #1e3a5f;
+      --primary:     #0075be;
+      --primary-glow:rgba(0,117,190,0.4);
+      --cyan:        #00d4ff;
+      --cyan-glow:   rgba(0,212,255,0.3);
+      --yellow:      #ffcc00;
+      --yellow-glow: rgba(255,204,0,0.35);
+      --green:       #00cc66;
+      --green-glow:  rgba(0,204,102,0.3);
+      --red:         #ff4444;
+      --text:        #e8f4fd;
+      --muted:       #6b8ca4;
+
+      --gelb:    #ffcc00;
+      --bio:     #a0522d;
+      --papier:  #1e90ff;
+      --rest:    #808080;
+      --glas:    #00cc66;
+    }
+
+    html, body {
+      height: 100%;
+      font-family: 'Nunito', -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background: radial-gradient(circle at 40% 30%, rgba(0,117,190,0.06) 0%, transparent 50%),
+                  radial-gradient(circle at 70% 80%, rgba(0,212,255,0.04) 0%, transparent 40%);
+      pointer-events: none; z-index: 0;
+    }
+
+    /* ── Header ── */
+    header {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(10,14,26,0.92);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+      padding: max(0.9rem, env(safe-area-inset-top)) 1.2rem 0.9rem;
+      display: flex; align-items: center; gap: 12px;
+    }
+    .back-btn {
+      width: 36px; height: 36px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; color: var(--text); font-size: 1rem;
+      transition: all 0.2s; text-decoration: none;
+    }
+    .back-btn:hover { border-color: var(--cyan); }
+    header h1 {
+      font-size: 1.2rem; font-weight: 900;
+      color: var(--cyan);
+      text-shadow: 0 0 16px var(--cyan-glow);
+      flex: 1;
+    }
+
+    /* ── Main ── */
+    main {
+      position: relative; z-index: 1;
+      padding: 16px 16px 100px;
+      max-width: 480px; margin: 0 auto;
+    }
+
+    /* ── Section Title ── */
+    .section-title {
+      font-size: 0.75rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      color: var(--muted);
+      margin: 24px 0 12px;
+    }
+    .section-title:first-child { margin-top: 0; }
+
+    /* ── Staggered Fade-In ── */
+    .fade-section {
+      opacity: 0;
+      transform: translateY(18px);
+      transition: opacity 0.5s ease-out, transform 0.5s ease-out;
+    }
+    .fade-section.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* ── PLZ Compact Bar (when PLZ already set) ── */
+    .plz-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: linear-gradient(135deg, #0d1f35 0%, #0a1828 100%);
+      border: 1px solid rgba(0,204,102,0.25);
+      border-radius: 16px;
+      padding: 12px 16px;
+      margin-bottom: 16px;
+    }
+    .plz-bar-icon { font-size: 1.1rem; }
+    .plz-bar-info { flex: 1; }
+    .plz-bar-label {
+      font-size: 0.65rem;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .plz-bar-value {
+      font-size: 1rem;
+      font-weight: 900;
+      color: var(--green);
+      letter-spacing: 2px;
+    }
+    .plz-bar-change {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 6px 12px;
+      color: var(--muted);
+      font-family: 'Nunito', sans-serif;
+      font-size: 0.7rem;
+      font-weight: 800;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .plz-bar-change:hover { border-color: var(--cyan); color: var(--cyan); }
+
+    /* ── PLZ Search (first-time / edit mode) ── */
+    .plz-card {
+      background: linear-gradient(135deg, #0d1f35 0%, #0a1828 100%);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 20px;
+      margin-bottom: 20px;
+      transition: border-color 0.3s;
+    }
+    .plz-card.loaded {
+      border-color: rgba(0,204,102,0.3);
+    }
+    .plz-card.hidden { display: none; }
+    .plz-label {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--muted);
+      margin-bottom: 10px;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .plz-row {
+      display: flex; gap: 10px;
+    }
+    .plz-input {
+      flex: 1;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px 16px;
+      color: var(--text);
+      font-family: 'Nunito', sans-serif;
+      font-size: 1.1rem;
+      font-weight: 700;
+      letter-spacing: 2px;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .plz-input::placeholder { color: var(--muted); letter-spacing: 1px; font-size: 0.9rem; }
+    .plz-input:focus { border-color: var(--cyan); box-shadow: 0 0 12px var(--cyan-glow); }
+    .plz-btn {
+      background: linear-gradient(135deg, var(--primary), var(--cyan));
+      border: none;
+      border-radius: 14px;
+      padding: 12px 20px;
+      color: #fff;
+      font-family: 'Nunito', sans-serif;
+      font-size: 0.9rem;
+      font-weight: 800;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+      position: relative;
+      overflow: hidden;
+    }
+    .plz-btn:hover { transform: scale(1.04); box-shadow: 0 0 16px var(--cyan-glow); }
+    .plz-btn:active { transform: scale(0.97); }
+    .plz-btn.loading { pointer-events: none; }
+    .plz-btn.loading::after {
+      content: '';
+      position: absolute; inset: 0;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+      animation: shimmer 1s infinite;
+    }
+    @keyframes shimmer {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(100%); }
+    }
+    .plz-status {
+      margin-top: 10px;
+      font-size: 0.78rem;
+      color: var(--green);
+      font-weight: 700;
+      display: none;
+      animation: fadeUp 0.3s ease-out;
+    }
+    .plz-status.show { display: block; }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── Hero Banner (most urgent pickup) ── */
+    .hero-banner {
+      border-radius: 22px;
+      padding: 20px;
+      margin-bottom: 20px;
+      position: relative;
+      overflow: hidden;
+      animation: heroSlideIn 0.6s ease-out;
+    }
+    @keyframes heroSlideIn {
+      from { opacity: 0; transform: scale(0.95) translateY(10px); }
+      to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+    .hero-banner::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,0.04) 0%, transparent 60%);
+      pointer-events: none;
+    }
+    .hero-banner.urgent {
+      background: linear-gradient(135deg, rgba(255,68,68,0.15) 0%, rgba(255,120,0,0.08) 100%);
+      border: 1px solid rgba(255,68,68,0.3);
+    }
+    .hero-banner.soon {
+      background: linear-gradient(135deg, rgba(255,204,0,0.12) 0%, rgba(255,160,0,0.06) 100%);
+      border: 1px solid rgba(255,204,0,0.25);
+    }
+    .hero-banner.relaxed {
+      background: linear-gradient(135deg, rgba(0,204,102,0.1) 0%, rgba(0,117,190,0.06) 100%);
+      border: 1px solid rgba(0,204,102,0.25);
+    }
+    .hero-top {
+      display: flex; align-items: center; gap: 14px;
+      margin-bottom: 10px;
+    }
+    .hero-icon {
+      width: 52px; height: 52px;
+      border-radius: 16px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.8rem;
+      background: rgba(255,255,255,0.06);
+      backdrop-filter: blur(8px);
+      flex-shrink: 0;
+    }
+    .hero-info { flex: 1; }
+    .hero-label {
+      font-size: 0.65rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      opacity: 0.7;
+    }
+    .hero-title {
+      font-size: 1.1rem;
+      font-weight: 900;
+      line-height: 1.2;
+    }
+    .hero-countdown {
+      font-size: 2rem;
+      font-weight: 900;
+      text-align: right;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+    .hero-countdown-label {
+      font-size: 0.6rem;
+      font-weight: 700;
+      text-align: right;
+      opacity: 0.6;
+      text-transform: uppercase;
+    }
+    .hero-date {
+      font-size: 0.75rem;
+      font-weight: 600;
+      opacity: 0.6;
+    }
+    .hero-pulse {
+      animation: heroPulse 2s ease-in-out infinite;
+    }
+    @keyframes heroPulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+
+    /* ── Next Pickup Cards (horizontal scroll) ── */
+    .pickup-scroll {
+      display: flex;
+      gap: 12px;
+      overflow-x: auto;
+      padding: 4px 0 8px;
+      scroll-snap-type: x mandatory;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    .pickup-scroll::-webkit-scrollbar { display: none; }
+
+    .pickup-card {
+      flex: 0 0 130px;
+      scroll-snap-align: start;
+      border-radius: 18px;
+      padding: 14px 12px;
+      text-align: center;
+      border: 1px solid;
+      transition: all 0.3s;
+      cursor: default;
+      position: relative;
+      overflow: hidden;
+      opacity: 0;
+      transform: translateY(12px) scale(0.95);
+    }
+    .pickup-card.animate-in {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+    .pickup-card::before {
+      content: '';
+      position: absolute; top: -50%; left: -50%;
+      width: 200%; height: 200%;
+      background: radial-gradient(circle at center, rgba(255,255,255,0.03) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .pickup-card:hover { transform: translateY(-4px) scale(1.02); }
+    .pickup-card .pickup-icon {
+      font-size: 1.6rem;
+      margin-bottom: 4px;
+    }
+    .pickup-card .pickup-name {
+      font-size: 0.62rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+      opacity: 0.8;
+    }
+    .pickup-card .pickup-days {
+      font-size: 1.5rem;
+      font-weight: 900;
+      line-height: 1;
+    }
+    .pickup-card .pickup-days-label {
+      font-size: 0.6rem;
+      font-weight: 700;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+    .pickup-card .pickup-date {
+      font-size: 0.65rem;
+      font-weight: 600;
+      margin-top: 5px;
+      opacity: 0.6;
+    }
+
+    /* Urgency glow for today/tomorrow */
+    .pickup-card.is-today {
+      animation: urgencyPulse 2s ease-in-out infinite;
+    }
+    .pickup-card.is-tomorrow {
+      box-shadow: 0 0 20px rgba(255,204,0,0.15);
+    }
+    @keyframes urgencyPulse {
+      0%, 100% { box-shadow: 0 0 12px rgba(255,68,68,0.2); }
+      50% { box-shadow: 0 0 28px rgba(255,68,68,0.4); }
+    }
+
+    /* Card color variants */
+    .pickup-card.gelb {
+      background: linear-gradient(160deg, rgba(255,204,0,0.12) 0%, rgba(255,204,0,0.04) 100%);
+      border-color: rgba(255,204,0,0.3);
+      color: var(--gelb);
+    }
+    .pickup-card.bio {
+      background: linear-gradient(160deg, rgba(160,82,45,0.14) 0%, rgba(160,82,45,0.04) 100%);
+      border-color: rgba(160,82,45,0.35);
+      color: var(--bio);
+    }
+    .pickup-card.papier {
+      background: linear-gradient(160deg, rgba(30,144,255,0.12) 0%, rgba(30,144,255,0.04) 100%);
+      border-color: rgba(30,144,255,0.3);
+      color: var(--papier);
+    }
+    .pickup-card.rest {
+      background: linear-gradient(160deg, rgba(128,128,128,0.12) 0%, rgba(128,128,128,0.04) 100%);
+      border-color: rgba(128,128,128,0.3);
+      color: var(--rest);
+    }
+    .pickup-card.glas {
+      background: linear-gradient(160deg, rgba(0,204,102,0.12) 0%, rgba(0,204,102,0.04) 100%);
+      border-color: rgba(0,204,102,0.3);
+      color: var(--glas);
+    }
+
+    /* ── Reminder Section ── */
+    .reminder-card {
+      background: linear-gradient(135deg, #0f1c2e 0%, #0a1520 100%);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 16px;
+    }
+    .reminder-header {
+      display: flex; align-items: center; gap: 8px;
+      margin-bottom: 14px;
+    }
+    .reminder-header-icon {
+      font-size: 1.1rem;
+    }
+    .reminder-header-text {
+      font-size: 0.85rem;
+      font-weight: 800;
+      color: var(--text);
+      flex: 1;
+    }
+    .reminder-header-sub {
+      font-size: 0.65rem;
+      color: var(--muted);
+      font-weight: 600;
+    }
+    .reminder-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 0;
+    }
+    .reminder-row + .reminder-row {
+      border-top: 1px solid rgba(30,58,95,0.3);
+    }
+    .reminder-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .reminder-name {
+      font-size: 0.8rem;
+      font-weight: 700;
+      flex: 1;
+    }
+    .reminder-toggle {
+      position: relative;
+      width: 42px; height: 24px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.3s;
+      flex-shrink: 0;
+    }
+    .reminder-toggle::after {
+      content: '';
+      position: absolute;
+      top: 3px; left: 3px;
+      width: 16px; height: 16px;
+      border-radius: 50%;
+      background: var(--muted);
+      transition: all 0.3s;
+    }
+    .reminder-toggle.active {
+      background: rgba(0,212,255,0.2);
+      border-color: var(--cyan);
+    }
+    .reminder-toggle.active::after {
+      left: 21px;
+      background: var(--cyan);
+      box-shadow: 0 0 8px var(--cyan-glow);
+    }
+
+    /* ── Calendar ── */
+    .cal-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 18px;
+      overflow: hidden;
+    }
+    .cal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    .cal-title {
+      font-size: 1rem;
+      font-weight: 800;
+      color: var(--text);
+      transition: opacity 0.2s;
+    }
+    .cal-nav {
+      width: 34px; height: 34px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      color: var(--text);
+      font-size: 0.9rem;
+      transition: all 0.2s;
+    }
+    .cal-nav:hover { border-color: var(--cyan); color: var(--cyan); }
+    .cal-nav:active { transform: scale(0.9); }
+
+    .cal-weekdays {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      text-align: center;
+      margin-bottom: 8px;
+    }
+    .cal-weekdays span {
+      font-size: 0.65rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      color: var(--muted);
+      letter-spacing: 0.5px;
+    }
+
+    .cal-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 4px;
+      transition: opacity 0.25s;
+    }
+    .cal-grid.transitioning { opacity: 0.3; }
+
+    .cal-day {
+      position: relative;
+      aspect-ratio: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      border-radius: 12px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s;
+      color: var(--text);
+    }
+    .cal-day:hover { background: var(--surface2); }
+    .cal-day.empty { cursor: default; }
+    .cal-day.empty:hover { background: transparent; }
+    .cal-day.today {
+      border: 2px solid var(--cyan);
+      box-shadow: 0 0 10px var(--cyan-glow);
+      color: var(--cyan);
+      font-weight: 900;
+    }
+    .cal-day.selected {
+      background: rgba(0,212,255,0.12);
+    }
+    .cal-day.past { opacity: 0.35; }
+    .cal-day.has-pickup { font-weight: 900; }
+
+    .cal-dots {
+      display: flex;
+      gap: 3px;
+      margin-top: 2px;
+      height: 5px;
+    }
+    .cal-dot {
+      width: 5px; height: 5px;
+      border-radius: 50%;
+    }
+    .cal-dot.gelb   { background: var(--gelb); }
+    .cal-dot.bio    { background: var(--bio); }
+    .cal-dot.papier { background: var(--papier); }
+    .cal-dot.rest   { background: var(--rest); }
+    .cal-dot.glas   { background: var(--glas); }
+
+    /* ── Day Detail Popup ── */
+    .day-detail {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 14px 16px;
+      margin-top: 12px;
+      display: none;
+      animation: slideDown 0.25s ease-out;
+    }
+    .day-detail.show { display: block; }
+    @keyframes slideDown {
+      from { opacity: 0; transform: translateY(-8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .day-detail-title {
+      font-size: 0.8rem;
+      font-weight: 800;
+      color: var(--cyan);
+      margin-bottom: 10px;
+    }
+    .day-detail-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 0;
+    }
+    .day-detail-item + .day-detail-item {
+      border-top: 1px solid rgba(30,58,95,0.4);
+    }
+    .day-detail-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .day-detail-name {
+      font-size: 0.85rem;
+      font-weight: 700;
+      flex: 1;
+    }
+    .day-detail-rhythm {
+      font-size: 0.65rem;
+      font-weight: 600;
+      color: var(--muted);
+    }
+    .day-detail-none {
+      font-size: 0.8rem;
+      color: var(--muted);
+      font-style: italic;
+    }
+
+    /* ── Week List ── */
+    .week-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .week-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px 16px;
+      transition: all 0.3s;
+      opacity: 0;
+      transform: translateX(-10px);
+    }
+    .week-row.animate-in {
+      opacity: 1;
+      transform: translateX(0);
+    }
+    .week-row:hover { border-color: rgba(0,212,255,0.2); transform: translateX(4px); }
+    .week-row.is-today {
+      border-color: var(--cyan);
+      box-shadow: 0 0 12px var(--cyan-glow);
+      background: linear-gradient(135deg, rgba(0,212,255,0.06) 0%, var(--surface) 100%);
+    }
+    .week-date {
+      min-width: 44px;
+      text-align: center;
+    }
+    .week-date-day {
+      font-size: 1.1rem;
+      font-weight: 900;
+      line-height: 1;
+    }
+    .week-date-label {
+      font-size: 0.6rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .week-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      flex: 1;
+    }
+    .week-chip {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 0.7rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+    .week-chip.gelb   { background: rgba(255,204,0,0.12); color: var(--gelb); }
+    .week-chip.bio    { background: rgba(160,82,45,0.15); color: #c8855d; }
+    .week-chip.papier { background: rgba(30,144,255,0.12); color: var(--papier); }
+    .week-chip.rest   { background: rgba(128,128,128,0.12); color: #b0b0b0; }
+    .week-chip.glas   { background: rgba(0,204,102,0.12); color: var(--glas); }
+    .week-chip-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+    }
+    .week-chip.gelb .week-chip-dot   { background: var(--gelb); }
+    .week-chip.bio .week-chip-dot    { background: var(--bio); }
+    .week-chip.papier .week-chip-dot { background: var(--papier); }
+    .week-chip.rest .week-chip-dot   { background: var(--rest); }
+    .week-chip.glas .week-chip-dot   { background: var(--glas); }
+
+    /* ── Empty State ── */
+    .empty-state {
+      text-align: center;
+      padding: 50px 20px;
+      color: var(--muted);
+      animation: emptyFadeIn 0.8s ease-out;
+    }
+    @keyframes emptyFadeIn {
+      from { opacity: 0; transform: scale(0.9); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    .empty-state-icon {
+      font-size: 3.5rem;
+      margin-bottom: 16px;
+      animation: emptyFloat 3s ease-in-out infinite;
+    }
+    @keyframes emptyFloat {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
+    .empty-state-text {
+      font-size: 0.95rem;
+      font-weight: 800;
+      color: var(--text);
+    }
+    .empty-state-sub {
+      font-size: 0.78rem;
+      margin-top: 6px;
+      line-height: 1.5;
+    }
+
+    /* ── Legend ── */
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 16px;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: var(--muted);
+    }
+    .legend-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+    }
+
+    /* ── Stats Row ── */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .stats-pill {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px 8px;
+      text-align: center;
+      transition: all 0.2s;
+    }
+    .stats-pill:hover { border-color: rgba(0,212,255,0.2); transform: translateY(-2px); }
+    .stats-pill-val {
+      font-size: 1.2rem;
+      font-weight: 900;
+      color: var(--cyan);
+    }
+    .stats-pill-label {
+      font-size: 0.6rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--muted);
+      letter-spacing: 0.5px;
+      margin-top: 2px;
+    }
+
+    /* ── Bottom Navigation ── */
+    .bottom-nav {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      z-index: 100;
+      background: rgba(10,14,26,0.95);
+      backdrop-filter: blur(20px);
+      border-top: 1px solid var(--border);
+      padding: 10px 0 max(10px, env(safe-area-inset-bottom));
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+    }
+    .nav-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      cursor: pointer;
+      padding: 4px 16px;
+      border-radius: 12px;
+      transition: all 0.2s;
+      text-decoration: none;
+      color: var(--muted);
+      font-size: 0.65rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .nav-item.active { color: var(--cyan); }
+    .nav-item-icon { font-size: 1.3rem; }
+    .nav-item.active .nav-item-icon {
+      filter: drop-shadow(0 0 6px var(--cyan));
+    }
+    .nav-fab {
+      width: 60px; height: 60px;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--cyan) 100%);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.6rem;
+      box-shadow: 0 0 20px var(--cyan-glow), 0 4px 16px rgba(0,0,0,0.4);
+      cursor: pointer;
+      transition: all 0.2s;
+      border: 3px solid rgba(0,212,255,0.3);
+      margin-top: -24px;
+      flex-shrink: 0;
+    }
+    .nav-fab:hover { transform: scale(1.08); box-shadow: 0 0 30px var(--cyan-glow), 0 6px 20px rgba(0,0,0,0.5); }
+    .nav-fab:active { transform: scale(0.96); }
+
+    /* ── Toast ── */
+    .toast {
+      position: fixed;
+      bottom: 90px;
+      left: 50%; transform: translateX(-50%);
+      background: rgba(0,212,255,0.15);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(0,212,255,0.3);
+      color: var(--cyan);
+      padding: 12px 22px;
+      border-radius: 50px;
+      font-size: 0.9rem;
+      font-weight: 700;
+      animation: toastIn 0.3s ease-out;
+      z-index: 2000;
+      white-space: nowrap;
+      box-shadow: 0 0 20px var(--cyan-glow);
+    }
+    @keyframes toastIn {
+      from { opacity: 0; transform: translateX(-50%) translateY(20px); }
+      to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <a href="index.html" class="back-btn">←</a>
+    <h1>📅 Trashpeche</h1>
+  </header>
+
+  <main>
+
+    <!-- PLZ Compact Bar (shown when PLZ already saved) -->
+    <div class="plz-bar" id="plz-bar" style="display:none;">
+      <div class="plz-bar-icon">📮</div>
+      <div class="plz-bar-info">
+        <div class="plz-bar-label">Deine PLZ</div>
+        <div class="plz-bar-value" id="plz-bar-value">–</div>
+      </div>
+      <button class="plz-bar-change" id="plz-bar-change">Ändern</button>
+    </div>
+
+    <!-- PLZ Search (first-time or edit mode) -->
+    <div class="plz-card" id="plz-card">
+      <div class="plz-label">📍 Deine Postleitzahl eingeben</div>
+      <div class="plz-row">
+        <input type="text" class="plz-input" id="plz-input" placeholder="z.B. 50667" maxlength="5" inputmode="numeric" pattern="[0-9]*">
+        <button class="plz-btn" id="plz-btn">Laden</button>
+      </div>
+      <div class="plz-status" id="plz-status"></div>
+    </div>
+
+    <!-- Empty State (shown before PLZ) -->
+    <div class="empty-state" id="empty-state">
+      <div class="empty-state-icon">📮</div>
+      <div class="empty-state-text">Noch keine PLZ hinterlegt</div>
+      <div class="empty-state-sub">Gib deine Postleitzahl im <a href="profile.html" style="color:var(--cyan);font-weight:800;">Profil</a> ein<br>oder trag sie hier oben ein.</div>
+    </div>
+
+    <!-- Content (hidden until PLZ loaded) -->
+    <div id="content" style="display:none;">
+
+      <!-- Hero Banner -->
+      <div id="hero-banner"></div>
+
+      <!-- Quick Stats -->
+      <div class="stats-row fade-section" id="stats-section">
+        <div class="stats-pill">
+          <div class="stats-pill-val" id="stat-weekly">0</div>
+          <div class="stats-pill-label">Diese Woche</div>
+        </div>
+        <div class="stats-pill">
+          <div class="stats-pill-val" id="stat-monthly">0</div>
+          <div class="stats-pill-label">Diesen Monat</div>
+        </div>
+        <div class="stats-pill">
+          <div class="stats-pill-val" id="stat-types">0</div>
+          <div class="stats-pill-label">Tonnenarten</div>
+        </div>
+      </div>
+
+      <!-- Next Pickups -->
+      <div class="section-title fade-section">Nächste Abholungen</div>
+      <div class="pickup-scroll fade-section" id="pickup-scroll"></div>
+
+      <!-- Reminders -->
+      <div class="section-title fade-section">Erinnerungen</div>
+      <div class="reminder-card fade-section" id="reminder-card">
+        <div class="reminder-header">
+          <div class="reminder-header-icon">🔔</div>
+          <div>
+            <div class="reminder-header-text">Abend vorher erinnern</div>
+            <div class="reminder-header-sub">Benachrichtigung am Vorabend der Abholung</div>
+          </div>
+        </div>
+        <div id="reminder-toggles"></div>
+      </div>
+
+      <!-- Month Calendar -->
+      <div class="section-title fade-section">Kalender</div>
+      <div class="cal-card fade-section">
+        <div class="cal-header">
+          <button class="cal-nav" id="cal-prev">◀</button>
+          <div class="cal-title" id="cal-title"></div>
+          <button class="cal-nav" id="cal-next">▶</button>
+        </div>
+        <div class="cal-weekdays">
+          <span>Mo</span><span>Di</span><span>Mi</span><span>Do</span><span>Fr</span><span>Sa</span><span>So</span>
+        </div>
+        <div class="cal-grid" id="cal-grid"></div>
+        <div class="day-detail" id="day-detail">
+          <div class="day-detail-title" id="day-detail-title"></div>
+          <div id="day-detail-content"></div>
+        </div>
+      </div>
+
+      <!-- Legend -->
+      <div class="legend fade-section">
+        <div class="legend-item"><div class="legend-dot" style="background:var(--gelb)"></div> Gelber Sack</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--bio)"></div> Biotonne</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--papier)"></div> Papiertonne</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--rest)"></div> Restmüll</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--glas)"></div> Glas</div>
+      </div>
+
+      <!-- Week Ahead -->
+      <div class="section-title fade-section">Die nächsten 7 Tage</div>
+      <div class="week-list fade-section" id="week-list"></div>
+
+    </div>
+
+  </main>
+
+  <!-- Bottom Navigation -->
+  <nav class="bottom-nav">
+    <a href="index.html" class="nav-item">
+      <div class="nav-item-icon">🏠</div>
+      Home
+    </a>
+    <a href="app.html" class="nav-item">
+      <div class="nav-item-icon">🗺️</div>
+      Karte
+    </a>
+    <div class="nav-fab" onclick="window.location.href='app.html'">🗑️</div>
+    <a href="minigame.html" class="nav-item">
+      <div class="nav-item-icon">🎮</div>
+      Spiele
+    </a>
+    <a href="dashboard.html" class="nav-item">
+      <div class="nav-item-icon">📊</div>
+      Stats
+    </a>
+  </nav>
+
+  <script>
+    /* ── Trash Types ── */
+    const TYPES = {
+      gelb:   { name: 'Gelber Sack', icon: '🟡', cls: 'gelb' },
+      bio:    { name: 'Biotonne',    icon: '🟤', cls: 'bio' },
+      papier: { name: 'Papiertonne', icon: '🔵', cls: 'papier' },
+      rest:   { name: 'Restmüll',    icon: '⚫', cls: 'rest' },
+      glas:   { name: 'Glas',        icon: '🟢', cls: 'glas' }
+    };
+
+    const RHYTHM_LABELS = { weekly: 'Wöchentlich', biweekly: 'Alle 2 Wochen', monthly: 'Monatlich' };
+    const WEEKDAYS = ['So','Mo','Di','Mi','Do','Fr','Sa'];
+    const WEEKDAYS_LONG = ['Sonntag','Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag'];
+    const MONTHS = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+
+    let currentPlan = null;
+    let calYear, calMonth;
+
+    /* ── PLZ → Plan Generator ── */
+    function generatePlan(plz) {
+      const d = plz.split('').map(Number);
+      const seed = d.reduce((a, b) => a + b, 0);
+      const days = [1, 2, 3, 4, 5];
+
+      return {
+        plz,
+        plan: {
+          gelb:   { rhythm: 'biweekly', day: days[(seed + 0) % 5], startWeek: seed % 2 === 0 ? 'even' : 'odd' },
+          bio:    { rhythm: 'weekly',   day: days[(seed + 1) % 5] },
+          papier: { rhythm: 'biweekly', day: days[(seed + 2) % 5], startWeek: seed % 2 === 0 ? 'odd' : 'even' },
+          rest:   { rhythm: 'biweekly', day: days[(seed + 3) % 5], startWeek: seed % 2 === 0 ? 'even' : 'odd' },
+          glas:   { rhythm: 'monthly',  day: days[(seed + 4) % 5] }
+        }
+      };
+    }
+
+    /* ── Get pickups for a specific date ── */
+    function getPickupsForDate(date) {
+      if (!currentPlan) return [];
+      const plan = currentPlan.plan;
+      const dayOfWeek = date.getDay();
+      const pickups = [];
+
+      const startOfYear = new Date(date.getFullYear(), 0, 1);
+      const weekNum = Math.ceil(((date - startOfYear) / 86400000 + startOfYear.getDay()) / 7);
+
+      for (const [type, schedule] of Object.entries(plan)) {
+        if (dayOfWeek !== schedule.day) continue;
+
+        if (schedule.rhythm === 'weekly') {
+          pickups.push(type);
+        } else if (schedule.rhythm === 'biweekly') {
+          const isEvenWeek = weekNum % 2 === 0;
+          if ((schedule.startWeek === 'even' && isEvenWeek) || (schedule.startWeek === 'odd' && !isEvenWeek)) {
+            pickups.push(type);
+          }
+        } else if (schedule.rhythm === 'monthly') {
+          const firstOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
+          const firstWeekday = firstOfMonth.getDay();
+          let firstOccurrence = schedule.day - firstWeekday;
+          if (firstOccurrence <= 0) firstOccurrence += 7;
+          if (date.getDate() === firstOccurrence) {
+            pickups.push(type);
+          }
+        }
+      }
+      return pickups;
+    }
+
+    /* ── Next pickup date for a type ── */
+    function getNextPickup(type) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      for (let i = 0; i <= 60; i++) {
+        const d = new Date(today);
+        d.setDate(d.getDate() + i);
+        const pickups = getPickupsForDate(d);
+        if (pickups.includes(type)) return { date: d, daysAway: i };
+      }
+      return null;
+    }
+
+    /* ── Format date ── */
+    function fmtDate(d) {
+      return `${d.getDate()}. ${MONTHS[d.getMonth()].substring(0, 3)}`;
+    }
+    function fmtDateLong(d) {
+      return `${WEEKDAYS_LONG[d.getDay()]}, ${d.getDate()}. ${MONTHS[d.getMonth()]}`;
+    }
+
+    /* ── Render Hero Banner ── */
+    function renderHeroBanner() {
+      const container = document.getElementById('hero-banner');
+      const entries = [];
+      for (const type of Object.keys(TYPES)) {
+        const next = getNextPickup(type);
+        if (next) entries.push({ type, ...next });
+      }
+      entries.sort((a, b) => a.daysAway - b.daysAway);
+      if (entries.length === 0) { container.innerHTML = ''; return; }
+
+      const e = entries[0];
+      const t = TYPES[e.type];
+      const urgency = e.daysAway === 0 ? 'urgent' : e.daysAway <= 2 ? 'soon' : 'relaxed';
+      const daysText = e.daysAway === 0 ? 'Heute!' : e.daysAway === 1 ? 'Morgen' : e.daysAway + '';
+      const daysLabel = e.daysAway === 0 ? 'Tonne raus!' : e.daysAway === 1 ? 'Nicht vergessen!' : 'Tage';
+      const pulseClass = e.daysAway <= 1 ? ' hero-pulse' : '';
+
+      container.innerHTML = `
+        <div class="hero-banner ${urgency}">
+          <div class="hero-top">
+            <div class="hero-icon${pulseClass}">${t.icon}</div>
+            <div class="hero-info">
+              <div class="hero-label">Nächste Abholung</div>
+              <div class="hero-title">${t.name}</div>
+              <div class="hero-date">${fmtDateLong(e.date)}</div>
+            </div>
+            <div>
+              <div class="hero-countdown${pulseClass}">${daysText}</div>
+              <div class="hero-countdown-label">${daysLabel}</div>
+            </div>
+          </div>
+        </div>`;
+    }
+
+    /* ── Render Stats ── */
+    function renderStats() {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      // This week
+      let weekCount = 0;
+      const dayOfWeek = today.getDay() || 7; // Mon=1
+      for (let i = -(dayOfWeek - 1); i <= 7 - dayOfWeek; i++) {
+        const d = new Date(today); d.setDate(d.getDate() + i);
+        weekCount += getPickupsForDate(d).length;
+      }
+
+      // This month
+      let monthCount = 0;
+      const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+      for (let i = 1; i <= daysInMonth; i++) {
+        const d = new Date(today.getFullYear(), today.getMonth(), i);
+        monthCount += getPickupsForDate(d).length;
+      }
+
+      document.getElementById('stat-weekly').textContent = weekCount;
+      document.getElementById('stat-monthly').textContent = monthCount;
+      document.getElementById('stat-types').textContent = Object.keys(TYPES).length;
+    }
+
+    /* ── Render Next Pickup Cards ── */
+    function renderPickupCards() {
+      const container = document.getElementById('pickup-scroll');
+      const entries = [];
+
+      for (const type of Object.keys(TYPES)) {
+        const next = getNextPickup(type);
+        if (next) entries.push({ type, ...next });
+      }
+
+      entries.sort((a, b) => a.daysAway - b.daysAway);
+
+      container.innerHTML = entries.map((e, i) => {
+        const t = TYPES[e.type];
+        const daysText = e.daysAway === 0 ? 'Heute!' : e.daysAway === 1 ? 'Morgen' : e.daysAway + '';
+        const daysLabel = e.daysAway <= 1 ? '' : 'Tage';
+        const urgencyClass = e.daysAway === 0 ? ' is-today' : e.daysAway === 1 ? ' is-tomorrow' : '';
+        return `
+          <div class="pickup-card ${t.cls}${urgencyClass}" style="transition-delay: ${i * 80}ms">
+            <div class="pickup-icon">${t.icon}</div>
+            <div class="pickup-name">${t.name}</div>
+            <div class="pickup-days">${daysText}</div>
+            <div class="pickup-days-label">${daysLabel}</div>
+            <div class="pickup-date">${fmtDate(e.date)}</div>
+          </div>`;
+      }).join('');
+
+      // Staggered animation
+      requestAnimationFrame(() => {
+        container.querySelectorAll('.pickup-card').forEach(card => {
+          setTimeout(() => card.classList.add('animate-in'), 50);
+        });
+      });
+    }
+
+    /* ── Render Reminders ── */
+    function renderReminders() {
+      const container = document.getElementById('reminder-toggles');
+      const reminders = JSON.parse(localStorage.getItem('tb_reminders') || '{}');
+
+      container.innerHTML = Object.entries(TYPES).map(([key, t]) => {
+        const active = reminders[key] ? ' active' : '';
+        return `
+          <div class="reminder-row">
+            <div class="reminder-dot" style="background:var(--${t.cls})"></div>
+            <div class="reminder-name">${t.icon} ${t.name}</div>
+            <div class="reminder-toggle${active}" data-type="${key}" onclick="toggleReminder('${key}', this)"></div>
+          </div>`;
+      }).join('');
+    }
+
+    function toggleReminder(type, el) {
+      const reminders = JSON.parse(localStorage.getItem('tb_reminders') || '{}');
+      reminders[type] = !reminders[type];
+      localStorage.setItem('tb_reminders', JSON.stringify(reminders));
+      el.classList.toggle('active');
+
+      if (reminders[type]) {
+        showToast('🔔 Erinnerung für ' + TYPES[type].name + ' aktiviert');
+      } else {
+        showToast('🔕 Erinnerung für ' + TYPES[type].name + ' deaktiviert');
+      }
+    }
+
+    /* ── Render Calendar ── */
+    function renderCalendar(animate) {
+      const title = document.getElementById('cal-title');
+      title.textContent = `${MONTHS[calMonth]} ${calYear}`;
+
+      const grid = document.getElementById('cal-grid');
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      if (animate) {
+        grid.classList.add('transitioning');
+        setTimeout(() => {
+          buildCalGrid(grid, today);
+          grid.classList.remove('transitioning');
+        }, 150);
+      } else {
+        buildCalGrid(grid, today);
+      }
+    }
+
+    function buildCalGrid(grid, today) {
+      const firstDay = new Date(calYear, calMonth, 1);
+      let startDay = firstDay.getDay() - 1;
+      if (startDay < 0) startDay = 6;
+
+      const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+      let html = '';
+
+      for (let i = 0; i < startDay; i++) {
+        html += '<div class="cal-day empty"></div>';
+      }
+
+      for (let d = 1; d <= daysInMonth; d++) {
+        const date = new Date(calYear, calMonth, d);
+        const pickups = getPickupsForDate(date);
+        const isToday = date.getTime() === today.getTime();
+        const isPast = date < today;
+
+        let classes = 'cal-day';
+        if (isToday) classes += ' today';
+        if (isPast && !isToday) classes += ' past';
+        if (pickups.length > 0) classes += ' has-pickup';
+
+        const dots = pickups.map(p => `<div class="cal-dot ${TYPES[p].cls}"></div>`).join('');
+
+        html += `
+          <div class="${classes}" data-date="${calYear}-${calMonth}-${d}" onclick="showDayDetail(${calYear},${calMonth},${d})">
+            ${d}
+            <div class="cal-dots">${dots}</div>
+          </div>`;
+      }
+
+      grid.innerHTML = html;
+      document.getElementById('day-detail').classList.remove('show');
+    }
+
+    /* ── Show Day Detail ── */
+    function showDayDetail(year, month, day) {
+      const date = new Date(year, month, day);
+      const pickups = getPickupsForDate(date);
+      const detail = document.getElementById('day-detail');
+      const titleEl = document.getElementById('day-detail-title');
+      const contentEl = document.getElementById('day-detail-content');
+
+      titleEl.textContent = fmtDateLong(date);
+
+      document.querySelectorAll('.cal-day.selected').forEach(el => el.classList.remove('selected'));
+      const sel = document.querySelector(`.cal-day[data-date="${year}-${month}-${day}"]`);
+      if (sel) sel.classList.add('selected');
+
+      if (pickups.length === 0) {
+        contentEl.innerHTML = '<div class="day-detail-none">Keine Abholung an diesem Tag</div>';
+      } else {
+        contentEl.innerHTML = pickups.map(p => {
+          const t = TYPES[p];
+          const rhythm = currentPlan ? RHYTHM_LABELS[currentPlan.plan[p].rhythm] : '';
+          return `
+            <div class="day-detail-item">
+              <div class="day-detail-dot" style="background:var(--${t.cls})"></div>
+              <div class="day-detail-name">${t.icon} ${t.name}</div>
+              <div class="day-detail-rhythm">${rhythm}</div>
+            </div>`;
+        }).join('');
+      }
+
+      detail.classList.add('show');
+    }
+
+    /* ── Render Week List ── */
+    function renderWeekList() {
+      const container = document.getElementById('week-list');
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      let html = '';
+      let rowIndex = 0;
+
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(today);
+        d.setDate(d.getDate() + i);
+        const pickups = getPickupsForDate(d);
+        if (pickups.length === 0) continue;
+
+        const isToday = i === 0;
+        const chips = pickups.map(p => {
+          const t = TYPES[p];
+          return `<div class="week-chip ${t.cls}"><div class="week-chip-dot"></div>${t.name}</div>`;
+        }).join('');
+
+        html += `
+          <div class="week-row${isToday ? ' is-today' : ''}" style="transition-delay: ${rowIndex * 100}ms">
+            <div class="week-date">
+              <div class="week-date-day">${d.getDate()}</div>
+              <div class="week-date-label">${isToday ? 'Heute' : WEEKDAYS[d.getDay()]}</div>
+            </div>
+            <div class="week-chips">${chips}</div>
+          </div>`;
+        rowIndex++;
+      }
+
+      if (!html) {
+        html = '<div style="text-align:center;padding:16px;color:var(--muted);font-size:0.85rem;font-weight:600;">Keine Abholungen in den nächsten 7 Tagen</div>';
+      }
+
+      container.innerHTML = html;
+
+      // Staggered animation
+      requestAnimationFrame(() => {
+        container.querySelectorAll('.week-row').forEach(row => {
+          setTimeout(() => row.classList.add('animate-in'), 50);
+        });
+      });
+    }
+
+    /* ── Staggered Section Fade-In ── */
+    function animateSections() {
+      const sections = document.querySelectorAll('.fade-section');
+      sections.forEach((el, i) => {
+        setTimeout(() => el.classList.add('visible'), 100 + i * 80);
+      });
+    }
+
+    /* ── Load Plan ── */
+    function loadPlan(plz, animate) {
+      currentPlan = generatePlan(plz);
+      localStorage.setItem('tb_plz', plz);
+      localStorage.setItem('tb_abfuhrplan', JSON.stringify(currentPlan));
+
+      const now = new Date();
+      calYear = now.getFullYear();
+      calMonth = now.getMonth();
+
+      document.getElementById('empty-state').style.display = 'none';
+      document.getElementById('content').style.display = 'block';
+
+      // Show compact bar, hide full input
+      document.getElementById('plz-bar').style.display = 'flex';
+      document.getElementById('plz-bar-value').textContent = plz;
+      document.getElementById('plz-card').classList.add('hidden');
+
+      renderHeroBanner();
+      renderStats();
+      renderPickupCards();
+      renderReminders();
+      renderCalendar(false);
+      renderWeekList();
+      if (animate) {
+        animateSections();
+      } else {
+        // Show all sections instantly
+        document.querySelectorAll('.fade-section').forEach(el => el.classList.add('visible'));
+        document.querySelectorAll('.pickup-card').forEach(el => el.classList.add('animate-in'));
+        document.querySelectorAll('.week-row').forEach(el => el.classList.add('animate-in'));
+      }
+    }
+
+    function loadPlanWithAnimation(plz) {
+      const btn = document.getElementById('plz-btn');
+      btn.classList.add('loading');
+      btn.textContent = '...';
+
+      setTimeout(() => {
+        loadPlan(plz, true);
+
+        btn.classList.remove('loading');
+        btn.textContent = '✓';
+        setTimeout(() => { btn.textContent = 'Laden'; }, 1500);
+
+        showToast('✓ Abfuhrplan für PLZ ' + plz + ' geladen');
+      }, 600);
+    }
+
+    /* ── Event Listeners ── */
+    document.getElementById('plz-btn').addEventListener('click', () => {
+      const plz = document.getElementById('plz-input').value.trim();
+      if (!/^\d{5}$/.test(plz)) {
+        showToast('Bitte gültige 5-stellige PLZ eingeben');
+        return;
+      }
+      loadPlanWithAnimation(plz);
+    });
+
+    document.getElementById('plz-input').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') document.getElementById('plz-btn').click();
+    });
+
+    // "Ändern" button → show full PLZ input
+    document.getElementById('plz-bar-change').addEventListener('click', () => {
+      document.getElementById('plz-card').classList.remove('hidden');
+      document.getElementById('plz-input').value = localStorage.getItem('tb_plz') || '';
+      document.getElementById('plz-input').focus();
+    });
+
+    document.getElementById('cal-prev').addEventListener('click', () => {
+      calMonth--;
+      if (calMonth < 0) { calMonth = 11; calYear--; }
+      renderCalendar(true);
+    });
+
+    document.getElementById('cal-next').addEventListener('click', () => {
+      calMonth++;
+      if (calMonth > 11) { calMonth = 0; calYear++; }
+      renderCalendar(true);
+    });
+
+    /* ── Init ── */
+    window.addEventListener('load', () => {
+      const savedPlz = localStorage.getItem('tb_plz');
+      if (savedPlz) {
+        // PLZ already set → show calendar directly, no animation
+        loadPlan(savedPlz, false);
+      }
+    });
+
+    /* ── Toast ── */
+    function showToast(msg) {
+      const old = document.querySelector('.toast');
+      if (old) old.remove();
+      const t = document.createElement('div');
+      t.className = 'toast';
+      t.textContent = msg;
+      document.body.appendChild(t);
+      setTimeout(() => { t.style.opacity = '0'; t.style.transition = 'opacity 0.3s'; setTimeout(() => t.remove(), 300); }, 2500);
+    }
+  </script>
+</body>
+</html>

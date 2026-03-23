@@ -1,0 +1,50 @@
+{
+  "name": "trashbash-backend",
+  "version": "0.1.0",
+  "description": "Trash bash - Gamified Trash Collection API",
+  "main": "dist/src/server.js",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "start": "node dist/src/server.js",
+    "build": "tsc",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate deploy",
+    "db:studio": "prisma studio",
+    "db:seed": "tsx prisma/seed.ts",
+    "mobile": "node setup-mobile.mjs",
+    "mobile:qr": "start http://localhost:3000/qr.html",
+    "lint": "eslint src --ext .ts",
+    "format": "prettier --write src",
+    "test": "vitest"
+  },
+  "keywords": [
+    "trash",
+    "collection",
+    "gamification",
+    "fastify",
+    "nodejs"
+  ],
+  "author": "Trash bash Team",
+  "license": "MIT",
+  "dependencies": {
+    "@fastify/cors": "^11.2.0",
+    "@fastify/jwt": "^10.0.0",
+    "@fastify/multipart": "^9.4.0",
+    "@fastify/static": "^8.3.0",
+    "@prisma/client": "^5.7.1",
+    "dotenv": "^16.3.1",
+    "fastify": "^5.8.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.6",
+    "@typescript-eslint/eslint-plugin": "^6.17.0",
+    "@typescript-eslint/parser": "^6.17.0",
+    "eslint": "^8.56.0",
+    "prettier": "^3.1.1",
+    "prisma": "^5.7.1",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3",
+    "vitest": "^1.1.0"
+  }
+}

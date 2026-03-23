@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+  <meta name="theme-color" content="#0a0e1a">
+  <title>Trash Bash – Dashboard</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg:          #0a0e1a;
+      --surface:     #111827;
+      --surface2:    #1a2332;
+      --border:      #1e3a5f;
+      --primary:     #0075be;
+      --primary-glow:rgba(0,117,190,0.4);
+      --cyan:        #00d4ff;
+      --cyan-glow:   rgba(0,212,255,0.3);
+      --yellow:      #ffcc00;
+      --yellow-glow: rgba(255,204,0,0.35);
+      --green:       #00cc66;
+      --green-glow:  rgba(0,204,102,0.3);
+      --red:         #ff4444;
+      --text:        #e8f4fd;
+      --muted:       #6b8ca4;
+    }
+
+    html, body {
+      height: 100%;
+      font-family: 'Nunito', -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background: radial-gradient(circle at 30% 20%, rgba(0,117,190,0.06) 0%, transparent 50%),
+                  radial-gradient(circle at 70% 70%, rgba(0,212,255,0.04) 0%, transparent 40%);
+      pointer-events: none; z-index: 0;
+    }
+
+    /* ── Header ── */
+    header {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(10,14,26,0.92);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+      padding: max(0.9rem, env(safe-area-inset-top)) 1.2rem 0.9rem;
+      display: flex; align-items: center; gap: 12px;
+    }
+    .back-btn {
+      width: 36px; height: 36px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; color: var(--text); font-size: 1rem;
+      transition: all 0.2s; text-decoration: none;
+    }
+    .back-btn:hover { border-color: var(--cyan); }
+    header h1 {
+      font-size: 1.2rem; font-weight: 900;
+      color: var(--cyan);
+      text-shadow: 0 0 16px var(--cyan-glow);
+      flex: 1;
+    }
+
+    /* ── Main ── */
+    main {
+      position: relative; z-index: 1;
+      padding: 16px 16px 100px;
+      max-width: 480px; margin: 0 auto;
+    }
+
+    /* ── Player Summary ── */
+    .player-summary {
+      background: linear-gradient(135deg, #0d1f35 0%, #0a1828 100%);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 20px;
+      margin-bottom: 16px;
+      display: flex; gap: 16px; align-items: center;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    }
+    .avatar-lg {
+      width: 72px; height: 72px;
+      background: linear-gradient(135deg, var(--primary), var(--cyan));
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 2rem;
+      box-shadow: 0 0 24px var(--cyan-glow);
+      border: 3px solid rgba(0,212,255,0.35);
+      flex-shrink: 0;
+    }
+    .summary-info { flex: 1; }
+    .summary-name { font-size: 1.1rem; font-weight: 900; }
+    .summary-sub { font-size: 0.75rem; color: var(--muted); font-weight: 700; margin-bottom: 10px; }
+    .xp-bar-sm {
+      height: 8px;
+      background: rgba(255,255,255,0.08);
+      border-radius: 8px; overflow: hidden;
+      margin-bottom: 4px;
+    }
+    .xp-fill-sm {
+      height: 100%;
+      background: linear-gradient(90deg, var(--yellow), #ffaa00);
+      border-radius: 8px;
+      box-shadow: 0 0 8px var(--yellow-glow);
+    }
+    .xp-text { font-size: 0.7rem; color: var(--muted); font-weight: 700; }
+
+    /* ── Stats Grid ── */
+    .stats-grid {
+      display: grid; grid-template-columns: repeat(2, 1fr);
+      gap: 10px; margin-bottom: 16px;
+    }
+    .stat-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 16px;
+      cursor: pointer;
+      transition: all 0.2s;
+      position: relative; overflow: hidden;
+    }
+    .stat-card:hover {
+      border-color: var(--cyan);
+      box-shadow: 0 0 16px var(--cyan-glow);
+      transform: translateY(-2px);
+    }
+    .stat-card-icon { font-size: 1.4rem; margin-bottom: 8px; }
+    .stat-card-val {
+      font-size: 1.8rem; font-weight: 900;
+      color: var(--cyan);
+      text-shadow: 0 0 12px var(--cyan-glow);
+      line-height: 1;
+    }
+    .stat-card-val.yellow { color: var(--yellow); text-shadow: 0 0 12px var(--yellow-glow); }
+    .stat-card-val.green  { color: var(--green);  text-shadow: 0 0 12px var(--green-glow); }
+    .stat-card-label { font-size: 0.72rem; color: var(--muted); font-weight: 700; margin-top: 4px; text-transform: uppercase; }
+
+    /* ── Section ── */
+    .section-title {
+      font-size: 0.72rem; font-weight: 800;
+      text-transform: uppercase; letter-spacing: 1.5px;
+      color: var(--muted); margin: 20px 0 10px;
+    }
+
+    /* ── Progress Bar ── */
+    .progress-row {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 16px;
+      margin-bottom: 10px;
+    }
+    .progress-header {
+      display: flex; justify-content: space-between;
+      align-items: center; margin-bottom: 10px;
+    }
+    .progress-title { font-size: 0.95rem; font-weight: 800; }
+    .progress-pts {
+      font-size: 0.8rem; font-weight: 800;
+      background: rgba(0,212,255,0.1);
+      color: var(--cyan);
+      padding: 3px 10px; border-radius: 20px;
+      border: 1px solid rgba(0,212,255,0.2);
+    }
+    .bar-track {
+      height: 10px;
+      background: rgba(255,255,255,0.07);
+      border-radius: 10px; overflow: hidden;
+    }
+    .bar-fill {
+      height: 100%; border-radius: 10px;
+      background: linear-gradient(90deg, var(--primary), var(--cyan));
+      box-shadow: 0 0 10px var(--cyan-glow);
+      transition: width 1s ease;
+    }
+    .bar-fill.yellow { background: linear-gradient(90deg, #cc8800, var(--yellow)); box-shadow: 0 0 10px var(--yellow-glow); }
+    .bar-fill.green  { background: linear-gradient(90deg, #007744, var(--green)); box-shadow: 0 0 10px var(--green-glow); }
+    .bar-fill.red    { background: linear-gradient(90deg, #aa0000, var(--red)); }
+    .bar-sub { font-size: 0.7rem; color: var(--muted); margin-top: 6px; font-weight: 700; }
+
+    /* ── Achievements ── */
+    .badge-grid {
+      display: grid; grid-template-columns: repeat(2, 1fr);
+      gap: 10px; margin-bottom: 16px;
+    }
+    .badge-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 16px;
+      cursor: pointer; transition: all 0.2s;
+      position: relative;
+    }
+    .badge-card.earned {
+      border-color: rgba(255,204,0,0.3);
+      background: rgba(255,204,0,0.05);
+    }
+    .badge-card.earned:hover { box-shadow: 0 0 16px var(--yellow-glow); }
+    .badge-card:not(.earned) { opacity: 0.5; }
+    .badge-card-icon { font-size: 1.6rem; margin-bottom: 6px; }
+    .badge-card-title { font-size: 0.85rem; font-weight: 800; }
+    .badge-card-sub { font-size: 0.7rem; color: var(--muted); margin-top: 2px; font-weight: 600; }
+    .earned-check {
+      position: absolute; top: 10px; right: 10px;
+      background: var(--yellow); color: #1a1000;
+      width: 18px; height: 18px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.6rem; font-weight: 900;
+    }
+
+    /* ── Ranking Table ── */
+    .ranking-list { display: flex; flex-direction: column; gap: 8px; }
+    .rank-row {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 12px 16px;
+      display: flex; align-items: center; gap: 12px;
+      cursor: pointer; transition: all 0.2s;
+    }
+    .rank-row.me {
+      border-color: var(--cyan);
+      background: rgba(0,212,255,0.05);
+      box-shadow: 0 0 12px var(--cyan-glow);
+    }
+    .rank-row:hover { transform: translateX(4px); }
+    .rank-num {
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      background: var(--surface);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.85rem; font-weight: 900;
+      flex-shrink: 0;
+    }
+    .rank-num.gold   { background: var(--yellow); color: #1a1000; box-shadow: 0 0 10px var(--yellow-glow); }
+    .rank-num.silver { background: #c0c0c0; color: #111; }
+    .rank-num.bronze { background: #cd7f32; color: #fff; }
+    .rank-user { flex: 1; }
+    .rank-name { font-size: 0.9rem; font-weight: 800; }
+    .rank-level { font-size: 0.7rem; color: var(--muted); font-weight: 700; }
+    .rank-pts {
+      font-size: 0.9rem; font-weight: 900;
+      color: var(--yellow);
+    }
+
+    /* ── Session Panel ── */
+    .session-panel {
+      background: linear-gradient(135deg, #001f3d, #002a50);
+      border: 1px solid rgba(0,117,190,0.4);
+      border-radius: 20px;
+      padding: 18px;
+      margin-bottom: 16px;
+      box-shadow: 0 0 20px var(--primary-glow);
+    }
+    .session-stats {
+      display: grid; grid-template-columns: repeat(2,1fr);
+      gap: 12px; margin-bottom: 14px;
+    }
+    .session-stat-label { font-size: 0.7rem; color: var(--muted); font-weight: 700; text-transform: uppercase; }
+    .session-stat-val { font-size: 1.1rem; font-weight: 900; color: var(--text); margin-top: 2px; }
+    .session-stat-val.green { color: var(--green); text-shadow: 0 0 8px var(--green-glow); }
+    .btn-end {
+      width: 100%;
+      background: linear-gradient(135deg, var(--primary), var(--cyan));
+      border: none; border-radius: 14px;
+      color: white; font-size: 0.95rem; font-weight: 900;
+      padding: 14px; cursor: pointer;
+      box-shadow: 0 4px 16px var(--primary-glow);
+      transition: all 0.2s;
+    }
+    .btn-end:hover { transform: translateY(-2px); box-shadow: 0 8px 24px var(--primary-glow); }
+
+    /* ── Hotspot Cards ── */
+    .hotspot-card {
+      border-radius: 18px; padding: 14px 16px;
+      margin-bottom: 10px;
+      display: flex; align-items: center; gap: 12px;
+      cursor: pointer; transition: all 0.2s;
+      border: 1px solid transparent;
+    }
+    .hotspot-card.high   { background: rgba(255,68,68,0.08); border-color: rgba(255,68,68,0.25); }
+    .hotspot-card.medium { background: rgba(255,204,0,0.06); border-color: rgba(255,204,0,0.2); }
+    .hotspot-card.low    { background: rgba(0,117,190,0.07); border-color: rgba(0,117,190,0.2); }
+    .hotspot-card:hover { transform: translateX(4px); }
+    .hotspot-sev {
+      width: 10px; height: 10px; border-radius: 50%;
+      flex-shrink: 0; animation: pulse-dot 1.5s infinite;
+    }
+    @keyframes pulse-dot { 0%,100%{transform:scale(1)} 50%{transform:scale(1.3)} }
+    .hotspot-sev.high   { background: var(--red); box-shadow: 0 0 8px var(--red); }
+    .hotspot-sev.medium { background: var(--yellow); box-shadow: 0 0 8px var(--yellow-glow); }
+    .hotspot-sev.low    { background: var(--primary); box-shadow: 0 0 8px var(--primary-glow); }
+    .hotspot-info { flex: 1; }
+    .hotspot-title { font-size: 0.88rem; font-weight: 800; }
+    .hotspot-sub { font-size: 0.7rem; color: var(--muted); }
+    .hotspot-pts { font-size: 0.85rem; font-weight: 900; color: var(--green); }
+
+    /* ── Points System ── */
+    .pts-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; }
+    .pts-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 16px; padding: 14px;
+    }
+    .pts-card-title { font-size: 0.75rem; font-weight: 800; margin-bottom: 8px; color: var(--muted); text-transform: uppercase; }
+    .pts-item { display: flex; justify-content: space-between; font-size: 0.78rem; padding: 3px 0; }
+    .pts-val { font-weight: 900; color: var(--green); }
+
+    /* ── Bottom Nav ── */
+    .bottom-nav {
+      position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
+      background: rgba(10,14,26,0.95);
+      backdrop-filter: blur(20px);
+      border-top: 1px solid var(--border);
+      padding: 10px 0 max(10px, env(safe-area-inset-bottom));
+      display: flex; justify-content: space-around; align-items: center;
+    }
+    .nav-item {
+      display: flex; flex-direction: column; align-items: center;
+      gap: 3px; cursor: pointer; padding: 4px 16px;
+      border-radius: 12px; transition: all 0.2s;
+      text-decoration: none; color: var(--muted);
+      font-size: 0.65rem; font-weight: 800; text-transform: uppercase;
+    }
+    .nav-item.active { color: var(--cyan); }
+    .nav-item-icon { font-size: 1.3rem; }
+    .nav-item.active .nav-item-icon { filter: drop-shadow(0 0 6px var(--cyan)); }
+    .nav-fab {
+      width: 60px; height: 60px;
+      background: linear-gradient(135deg, var(--primary), var(--cyan));
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.6rem;
+      box-shadow: 0 0 20px var(--cyan-glow), 0 4px 16px rgba(0,0,0,0.4);
+      cursor: pointer; transition: all 0.2s;
+      border: 3px solid rgba(0,212,255,0.3);
+      margin-top: -24px; flex-shrink: 0;
+    }
+    .nav-fab:hover { transform: scale(1.08); }
+    .nav-fab:active { transform: scale(0.96); }
+
+    /* ── Toast ── */
+    .toast {
+      position: fixed; bottom: 90px;
+      left: 50%; transform: translateX(-50%);
+      background: rgba(0,212,255,0.15);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(0,212,255,0.3);
+      color: var(--cyan); padding: 12px 22px;
+      border-radius: 50px; font-size: 0.9rem; font-weight: 700;
+      animation: toastIn 0.3s ease-out;
+      z-index: 2000; white-space: nowrap;
+      box-shadow: 0 0 20px var(--cyan-glow);
+    }
+    @keyframes toastIn {
+      from { opacity: 0; transform: translateX(-50%) translateY(20px); }
+      to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+    }
+
+    /* ── Points Pop ── */
+    .pts-pop {
+      position: fixed;
+      font-weight: 900; color: var(--green);
+      font-size: 1.2rem; pointer-events: none;
+      text-shadow: 0 0 10px var(--green-glow);
+      animation: popUp 1s ease-out forwards;
+      z-index: 3000;
+    }
+    @keyframes popUp {
+      0%   { opacity: 1; transform: translateY(0) scale(0.8); }
+      100% { opacity: 0; transform: translateY(-60px) scale(1.2); }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <a href="index.html" class="back-btn">←</a>
+    <h1>Dashboard</h1>
+  </header>
+
+  <main>
+
+    <!-- Player Summary -->
+    <div class="player-summary">
+      <div class="avatar-lg">🧹</div>
+      <div class="summary-info">
+        <div class="summary-name">DemoUser</div>
+        <div class="summary-sub">Level 7 · Team Eco Warriors</div>
+        <div class="xp-bar-sm">
+          <div class="xp-fill-sm" style="width: 75%;"></div>
+        </div>
+        <div class="xp-text">2250 / 3000 XP · noch 750 bis Level 8</div>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="section-title">Statistiken</div>
+    <div class="stats-grid">
+      <div class="stat-card" onclick="popPoints(this, '+2250 Pts')">
+        <div class="stat-card-icon">🏆</div>
+        <div class="stat-card-val yellow">2250</div>
+        <div class="stat-card-label">Gesamt Punkte</div>
+      </div>
+      <div class="stat-card" onclick="popPoints(this, '45 kg!')">
+        <div class="stat-card-icon">⚖️</div>
+        <div class="stat-card-val green">45 kg</div>
+        <div class="stat-card-label">Müll gesammelt</div>
+      </div>
+      <div class="stat-card" onclick="popPoints(this, '12 Sessions!')">
+        <div class="stat-card-icon">📍</div>
+        <div class="stat-card-val">12</div>
+        <div class="stat-card-label">Sessions</div>
+      </div>
+      <div class="stat-card" onclick="popPoints(this, 'Platz #4!')">
+        <div class="stat-card-icon">🏅</div>
+        <div class="stat-card-val">#4</div>
+        <div class="stat-card-label">Global Ranking</div>
+      </div>
+    </div>
+
+    <!-- Active Session -->
+    <div class="section-title">Aktuelle Session</div>
+    <div class="session-panel">
+      <div class="session-stats">
+        <div>
+          <div class="session-stat-label">Laufzeit</div>
+          <div class="session-stat-val">1h 23min ⏱️</div>
+        </div>
+        <div>
+          <div class="session-stat-label">Distanz</div>
+          <div class="session-stat-val">4.5 km 📍</div>
+        </div>
+        <div>
+          <div class="session-stat-label">Fotos</div>
+          <div class="session-stat-val">8 Stück 📸</div>
+        </div>
+        <div>
+          <div class="session-stat-label">Punkte</div>
+          <div class="session-stat-val green">+175 Pts ⭐</div>
+        </div>
+      </div>
+      <button class="btn-end" onclick="popPoints(this, 'Session beendet! +175 Pts')">🏁 Session beenden</button>
+    </div>
+
+    <!-- Level Progression -->
+    <div class="section-title">Level Progression</div>
+    <div class="progress-row">
+      <div class="progress-header">
+        <div class="progress-title">Level 7 → Level 8</div>
+        <div class="progress-pts">750 Pts fehlen</div>
+      </div>
+      <div class="bar-track"><div class="bar-fill" style="width:75%"></div></div>
+      <div class="bar-sub">2250 / 3000 XP</div>
+    </div>
+    <div class="progress-row">
+      <div class="progress-header">
+        <div class="progress-title">⚖️ Gold Sammler (100kg)</div>
+        <div class="progress-pts">45 / 100 kg</div>
+      </div>
+      <div class="bar-track"><div class="bar-fill yellow" style="width:45%"></div></div>
+      <div class="bar-sub">55 kg bis zur Gold-Auszeichnung</div>
+    </div>
+    <div class="progress-row">
+      <div class="progress-header">
+        <div class="progress-title">📸 Foto Expert (25 Fotos)</div>
+        <div class="progress-pts">18 / 25</div>
+      </div>
+      <div class="bar-track"><div class="bar-fill green" style="width:72%"></div></div>
+      <div class="bar-sub">7 Fotos noch benötigt</div>
+    </div>
+
+    <!-- Achievements -->
+    <div class="section-title">Errungenschaften</div>
+    <div class="badge-grid">
+      <div class="badge-card earned">
+        <div class="earned-check">✓</div>
+        <div class="badge-card-icon">🥇</div>
+        <div class="badge-card-title">Gold Sammler</div>
+        <div class="badge-card-sub">50kg Müll</div>
+      </div>
+      <div class="badge-card earned">
+        <div class="earned-check">✓</div>
+        <div class="badge-card-icon">🎯</div>
+        <div class="badge-card-title">Hotspot Hunter</div>
+        <div class="badge-card-sub">3 Hotspots</div>
+      </div>
+      <div class="badge-card earned">
+        <div class="earned-check">✓</div>
+        <div class="badge-card-icon">🌿</div>
+        <div class="badge-card-title">Eco Warrior</div>
+        <div class="badge-card-sub">500 Pts</div>
+      </div>
+      <div class="badge-card">
+        <div class="badge-card-icon">📸</div>
+        <div class="badge-card-title">Foto Expert</div>
+        <div class="badge-card-sub">25 Fotos</div>
+      </div>
+      <div class="badge-card">
+        <div class="badge-card-icon">🥃</div>
+        <div class="badge-card-title">Glas Profi</div>
+        <div class="badge-card-sub">10 Glas-Fotos</div>
+      </div>
+      <div class="badge-card">
+        <div class="badge-card-icon">🚀</div>
+        <div class="badge-card-title">Sperrmüll Pro</div>
+        <div class="badge-card-sub">5kg Sperrmüll</div>
+      </div>
+    </div>
+
+    <!-- Ranking -->
+    <div class="section-title">Globale Rangliste</div>
+    <div class="ranking-list">
+      <div class="rank-row">
+        <div class="rank-num gold">1</div>
+        <div class="rank-user">
+          <div class="rank-name">EcoWarrior99</div>
+          <div class="rank-level">Level 9</div>
+        </div>
+        <div class="rank-pts">4850 ⭐</div>
+      </div>
+      <div class="rank-row">
+        <div class="rank-num silver">2</div>
+        <div class="rank-user">
+          <div class="rank-name">GreenHero</div>
+          <div class="rank-level">Level 8</div>
+        </div>
+        <div class="rank-pts">3920 ⭐</div>
+      </div>
+      <div class="rank-row">
+        <div class="rank-num bronze">3</div>
+        <div class="rank-user">
+          <div class="rank-name">TrashMaster</div>
+          <div class="rank-level">Level 8</div>
+        </div>
+        <div class="rank-pts">3750 ⭐</div>
+      </div>
+      <div class="rank-row me">
+        <div class="rank-num">4</div>
+        <div class="rank-user">
+          <div class="rank-name">DemoUser ← Du</div>
+          <div class="rank-level">Level 7</div>
+        </div>
+        <div class="rank-pts">2250 ⭐</div>
+      </div>
+      <div class="rank-row">
+        <div class="rank-num">5</div>
+        <div class="rank-user">
+          <div class="rank-name">EcoStartUp</div>
+          <div class="rank-level">Level 6</div>
+        </div>
+        <div class="rank-pts">1800 ⭐</div>
+      </div>
+    </div>
+
+    <!-- Nearby Hotspots -->
+    <div class="section-title">Hotspots in der Nähe</div>
+    <div class="hotspot-card high" onclick="popPoints(this, '+30 Pts für Hilfe!')">
+      <div class="hotspot-sev high"></div>
+      <div class="hotspot-info">
+        <div class="hotspot-title">⛔ Park Hauptplatz</div>
+        <div class="hotspot-sub">200m · Plastik, Glas, Organik · 23 Upvotes</div>
+      </div>
+      <div class="hotspot-pts">+30 Pts</div>
+    </div>
+    <div class="hotspot-card medium" onclick="popPoints(this, '+20 Pts für Hilfe!')">
+      <div class="hotspot-sev medium"></div>
+      <div class="hotspot-info">
+        <div class="hotspot-title">⚠️ Grünanlagen Süd</div>
+        <div class="hotspot-sub">550m · Papier, Karton · 12 Upvotes</div>
+      </div>
+      <div class="hotspot-pts">+20 Pts</div>
+    </div>
+    <div class="hotspot-card low" onclick="popPoints(this, '+10 Pts für Hilfe!')">
+      <div class="hotspot-sev low"></div>
+      <div class="hotspot-info">
+        <div class="hotspot-title">ℹ️ Waldrand Ost</div>
+        <div class="hotspot-sub">1.2km · Organik · 5 Upvotes</div>
+      </div>
+      <div class="hotspot-pts">+10 Pts</div>
+    </div>
+
+    <!-- Points System -->
+    <div class="section-title">Punkte-System</div>
+    <div class="pts-grid">
+      <div class="pts-card">
+        <div class="pts-card-title">📸 Fotos</div>
+        <div class="pts-item"><span>🛍️ Plastik</span><span class="pts-val">15</span></div>
+        <div class="pts-item"><span>🥃 Glas</span><span class="pts-val">12</span></div>
+        <div class="pts-item"><span>🪑 Sperr</span><span class="pts-val">25</span></div>
+        <div class="pts-item"><span>🌿 Organik</span><span class="pts-val">10</span></div>
+      </div>
+      <div class="pts-card">
+        <div class="pts-card-title">🔥 Hotspots</div>
+        <div class="pts-item"><span>🔴 Hoch</span><span class="pts-val">30</span></div>
+        <div class="pts-item"><span>🟡 Mittel</span><span class="pts-val">20</span></div>
+        <div class="pts-item"><span>🟢 Gering</span><span class="pts-val">10</span></div>
+        <div class="pts-item"><span>✅ Gelöst</span><span class="pts-val">50</span></div>
+      </div>
+      <div class="pts-card">
+        <div class="pts-card-title">⚖️ Wiegen</div>
+        <div class="pts-item"><span>Basis</span><span class="pts-val">20</span></div>
+        <div class="pts-item"><span>Pro kg</span><span class="pts-val">+2</span></div>
+        <div class="pts-item"><span>Pro km</span><span class="pts-val">+5</span></div>
+        <div class="pts-item"><span>Bonus</span><span class="pts-val">+20</span></div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Bottom Nav -->
+  <nav class="bottom-nav">
+    <a href="index.html" class="nav-item">
+      <div class="nav-item-icon">🏠</div>
+      Home
+    </a>
+    <a href="app.html" class="nav-item">
+      <div class="nav-item-icon">🗺️</div>
+      Karte
+    </a>
+    <div class="nav-fab" onclick="window.location.href='app.html'">🗑️</div>
+    <a href="minigame.html" class="nav-item">
+      <div class="nav-item-icon">🎮</div>
+      Spiele
+    </a>
+    <a href="dashboard.html" class="nav-item active">
+      <div class="nav-item-icon">📊</div>
+      Stats
+    </a>
+  </nav>
+
+  <div id="toast-container"></div>
+
+  <script>
+    // Animate bars on load
+    window.addEventListener('load', () => {
+      document.querySelectorAll('.bar-fill, .xp-fill-sm').forEach(el => {
+        const w = el.style.width;
+        el.style.width = '0%';
+        setTimeout(() => el.style.width = w, 200);
+      });
+    });
+
+    function showToast(msg) {
+      const old = document.querySelector('.toast');
+      if (old) old.remove();
+      const t = document.createElement('div');
+      t.className = 'toast';
+      t.textContent = msg;
+      document.body.appendChild(t);
+      setTimeout(() => { t.style.opacity='0'; t.style.transition='opacity 0.3s'; setTimeout(()=>t.remove(),300); }, 2500);
+    }
+
+    function popPoints(el, text) {
+      const rect = el.getBoundingClientRect();
+      const pop = document.createElement('div');
+      pop.className = 'pts-pop';
+      pop.textContent = text;
+      pop.style.left = (rect.left + rect.width/2 - 40) + 'px';
+      pop.style.top  = (rect.top + window.scrollY) + 'px';
+      document.body.appendChild(pop);
+      setTimeout(() => pop.remove(), 1000);
+    }
+  </script>
+</body>
+</html>

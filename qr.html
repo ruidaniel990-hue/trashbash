@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0a0e1a">
+  <title>Trash Bash – Mobil öffnen</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800;900&display=swap');
+
+    * { margin:0; padding:0; box-sizing:border-box; }
+
+    :root {
+      --bg: #0a0e1a; --surface: #111827; --surface2: #1a2332; --border: #1e3a5f;
+      --cyan: #00d4ff; --cyan-glow: rgba(0,212,255,0.3);
+      --yellow: #ffcc00; --yellow-glow: rgba(255,204,0,0.3);
+      --green: #00cc66; --text: #e8f4fd; --muted: #6b8ca4;
+    }
+
+    body {
+      font-family: 'Nunito', sans-serif;
+      background: var(--bg); color: var(--text);
+      min-height: 100vh;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 24px;
+    }
+
+    .logo {
+      font-size: 1.4rem; font-weight: 900;
+      color: var(--cyan); text-shadow: 0 0 16px var(--cyan-glow);
+      margin-bottom: 6px;
+    }
+    .tagline { font-size: 0.85rem; color: var(--muted); font-weight: 700; margin-bottom: 28px; }
+
+    /* QR Card */
+    .qr-card {
+      background: white;
+      border-radius: 20px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 0 40px var(--cyan-glow), 0 8px 32px rgba(0,0,0,0.5);
+      border: 2px solid rgba(0,212,255,0.3);
+      display: flex; align-items: center; justify-content: center;
+      min-width: 220px; min-height: 220px;
+    }
+
+    #qrcode canvas, #qrcode img { display: block; }
+
+    /* Status */
+    .status-badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(0,204,102,0.1);
+      border: 1px solid rgba(0,204,102,0.3);
+      color: var(--green); padding: 8px 18px;
+      border-radius: 50px; font-size: 0.8rem; font-weight: 800;
+      margin-bottom: 20px;
+    }
+    .status-dot {
+      width: 8px; height: 8px; background: var(--green);
+      border-radius: 50%; animation: pulse 1.5s infinite;
+      box-shadow: 0 0 6px var(--green);
+    }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+    /* URL Box */
+    .url-box {
+      width: 100%; max-width: 360px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    .url-label {
+      font-size: 0.7rem; font-weight: 800; text-transform: uppercase;
+      letter-spacing: 1px; color: var(--muted); margin-bottom: 8px;
+    }
+    .url-text {
+      font-family: 'Courier New', monospace;
+      font-size: 0.95rem; font-weight: 700;
+      color: var(--cyan); word-break: break-all;
+      margin-bottom: 10px;
+      text-shadow: 0 0 10px var(--cyan-glow);
+    }
+    .copy-btn {
+      width: 100%; background: rgba(0,212,255,0.1);
+      border: 1px solid rgba(0,212,255,0.3);
+      color: var(--cyan); border-radius: 10px;
+      padding: 10px; font-family: 'Nunito', sans-serif;
+      font-weight: 800; font-size: 0.85rem; cursor: pointer;
+      transition: all 0.2s;
+    }
+    .copy-btn:hover { background: rgba(0,212,255,0.2); }
+
+    /* Firewall Warning */
+    .firewall-box {
+      width: 100%; max-width: 360px;
+      background: rgba(255,204,0,0.06);
+      border: 1px solid rgba(255,204,0,0.25);
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    .firewall-title { font-size: 0.85rem; font-weight: 800; color: var(--yellow); margin-bottom: 8px; }
+    .firewall-cmd {
+      background: #0a0e1a;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.75rem;
+      color: #a8d8ff;
+      word-break: break-all;
+      margin-bottom: 8px;
+      line-height: 1.4;
+    }
+    .firewall-sub { font-size: 0.72rem; color: var(--muted); font-weight: 700; }
+
+    /* Steps */
+    .steps {
+      width: 100%; max-width: 360px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px;
+    }
+    .steps-title { font-size: 0.75rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 12px; }
+    .step { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 10px; }
+    .step:last-child { margin-bottom: 0; }
+    .step-num {
+      width: 22px; height: 22px; border-radius: 50%;
+      background: var(--cyan); color: #001a26;
+      font-size: 0.7rem; font-weight: 900;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; margin-top: 1px;
+    }
+    .step-text { font-size: 0.82rem; font-weight: 700; line-height: 1.4; }
+    .step-text small { display: block; color: var(--muted); font-weight: 600; }
+
+    .spinner {
+      width: 40px; height: 40px;
+      border: 3px solid var(--border);
+      border-top-color: var(--cyan);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="logo">♻️ Trash Bash</div>
+  <div class="tagline">Scanne mit deinem Handy</div>
+
+  <div class="qr-card">
+    <div id="qr-loading"><div class="spinner"></div></div>
+    <div id="qrcode" style="display:none;"></div>
+  </div>
+
+  <div class="status-badge">
+    <div class="status-dot"></div>
+    Server online · Port 3000
+  </div>
+
+  <div class="url-box">
+    <div class="url-label">📡 Netzwerk-URL</div>
+    <div class="url-text" id="url-display">Wird erkannt…</div>
+    <button class="copy-btn" onclick="copyURL()">📋 URL kopieren</button>
+  </div>
+
+  <div class="firewall-box">
+    <div class="firewall-title">⚠️ Firewall freischalten (einmalig als Admin)</div>
+    <div class="firewall-cmd">netsh advfirewall firewall add rule name="Trash Bash Dev" dir=in action=allow protocol=TCP localport=3000</div>
+    <div class="firewall-sub">In CMD als Administrator ausführen, falls Handy keine Verbindung bekommt.</div>
+  </div>
+
+  <div class="steps">
+    <div class="steps-title">So gehts</div>
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-text">Handy im selben WLAN wie dieser PC
+        <small>Gleiches Netz = gleicher Router</small>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-text">QR Code mit Kamera-App scannen
+        <small>Oder URL oben manuell eingeben</small>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-text">App öffnet sich im Browser
+        <small>iOS/Android: "Zum Home-Screen" für PWA-Install</small>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    async function init() {
+      let url = '';
+      try {
+        const res = await fetch('/api/network-info');
+        const data = await res.json();
+        url = data.url;
+      } catch {
+        url = `http://${window.location.hostname}:3000`;
+      }
+
+      document.getElementById('url-display').textContent = url;
+      document.getElementById('qr-loading').style.display = 'none';
+
+      // Generate QR as image using qrserver.com API
+      const img = document.createElement('img');
+      img.width = 200; img.height = 200;
+      img.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&color=0075be&data=${encodeURIComponent(url)}`;
+      img.alt = url;
+      img.style.display = 'block';
+      img.style.borderRadius = '8px';
+      img.onerror = () => {
+        // offline fallback: show URL big
+        img.outerHTML = `<div style="padding:20px;text-align:center;font-size:0.75rem;color:#0075be;word-break:break-all;max-width:180px;">${url}</div>`;
+      };
+
+      const qrEl = document.getElementById('qrcode');
+      qrEl.appendChild(img);
+      qrEl.style.display = 'block';
+    }
+
+    function copyURL() {
+      const url = document.getElementById('url-display').textContent;
+      navigator.clipboard.writeText(url).then(() => {
+        const btn = document.querySelector('.copy-btn');
+        btn.textContent = '✅ Kopiert!';
+        setTimeout(() => btn.textContent = '📋 URL kopieren', 2000);
+      }).catch(() => {
+        // fallback
+        const el = document.createElement('textarea');
+        el.value = url; document.body.appendChild(el);
+        el.select(); document.execCommand('copy');
+        el.remove();
+      });
+    }
+
+    window.addEventListener('load', init);
+  </script>
+</body>
+</html>
