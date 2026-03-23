@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+  <meta name="theme-color" content="#0a0e1a">
+  <title>Trash Bash – Sortier-Blitz</title>
+  <script src="avatar-renderer.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800;900&display=swap');
+    * { margin:0; padding:0; box-sizing:border-box; }
+    :root {
+      --bg:#0a0e1a; --surface:#111827; --surface2:#1a2332; --border:#1e3a5f;
+      --cyan:#00d4ff; --cyan-glow:rgba(0,212,255,0.3);
+      --yellow:#ffcc00; --yellow-glow:rgba(255,204,0,0.35);
+      --green:#00cc66; --green-glow:rgba(0,204,102,0.3);
+      --red:#ff4444; --text:#e8f4fd; --muted:#6b8ca4;
+    }
+    html,body { height:100%; overflow:hidden; font-family:'Nunito',-apple-system,sans-serif; background:var(--bg); color:var(--text); }
+
+    /* ── TOP BAR ── */
+    .top-bar {
+      position:absolute; top:0; left:0; right:0; z-index:50;
+      padding:max(14px,env(safe-area-inset-top)) 16px 0;
+      display:flex; align-items:center; gap:12px;
+    }
+    .back-btn {
+      width:36px; height:36px; background:rgba(26,35,50,0.9); border:1px solid var(--border);
+      border-radius:50%; display:flex; align-items:center; justify-content:center;
+      color:var(--text); text-decoration:none; font-size:1rem; flex-shrink:0;
+    }
+    .top-title { flex:1; font-size:1rem; font-weight:900; color:var(--cyan); text-shadow:0 0 12px var(--cyan-glow); }
+    .coin-display { font-size:0.82rem; font-weight:900; color:var(--yellow); display:flex; align-items:center; gap:4px; }
+
+    /* ── SCREENS ── */
+    .screen { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:24px; }
+    .screen.hidden { display:none; }
+
+    /* ── START SCREEN ── */
+    .game-logo { font-size:3rem; margin-bottom:8px; }
+    .game-title { font-size:1.8rem; font-weight:900; color:var(--cyan); text-shadow:0 0 20px var(--cyan-glow); margin-bottom:4px; }
+    .game-sub { font-size:0.9rem; color:var(--muted); font-weight:700; margin-bottom:28px; }
+
+    .highscore-box {
+      background:var(--surface2); border:1px solid var(--border); border-radius:20px;
+      padding:16px 28px; margin-bottom:28px; text-align:center; min-width:200px;
+    }
+    .hs-label { font-size:0.7rem; font-weight:800; text-transform:uppercase; letter-spacing:1px; color:var(--muted); margin-bottom:4px; }
+    .hs-val { font-size:2rem; font-weight:900; color:var(--yellow); text-shadow:0 0 12px var(--yellow-glow); }
+
+    .how-to {
+      background:var(--surface2); border:1px solid var(--border); border-radius:20px;
+      padding:16px; margin-bottom:28px; width:100%; max-width:340px;
+    }
+    .how-title { font-size:0.72rem; font-weight:900; text-transform:uppercase; letter-spacing:1px; color:var(--muted); margin-bottom:10px; }
+    .how-row { display:flex; align-items:center; gap:10px; margin-bottom:8px; font-size:0.82rem; font-weight:700; }
+    .how-row:last-child { margin-bottom:0; }
+    .how-icon { font-size:1.2rem; width:28px; text-align:center; }
+
+    .bin-preview { display:flex; gap:10px; justify-content:center; margin-bottom:28px; }
+    .bin-chip { display:flex; flex-direction:column; align-items:center; gap:4px; padding:10px 12px; border-radius:14px; border:1px solid; }
+    .bin-chip .bi { font-size:1.4rem; }
+    .bin-chip .bl { font-size:0.6rem; font-weight:900; text-transform:uppercase; letter-spacing:0.5px; }
+
+    .start-btn {
+      width:100%; max-width:280px; padding:18px;
+      background:linear-gradient(135deg,#00aa55,var(--green));
+      border:none; border-radius:20px; color:#001a0a;
+      font-family:'Nunito',sans-serif; font-weight:900; font-size:1.1rem;
+      cursor:pointer; transition:all 0.15s;
+      box-shadow:0 6px 24px var(--green-glow);
+    }
+    .start-btn:active { transform:scale(0.96); }
+
+    /* ── GAME SCREEN ── */
+    .game-hud {
+      position:relative; z-index:10; flex-shrink:0;
+      padding:max(14px,env(safe-area-inset-top)) 16px 12px;
+      display:flex; align-items:center; gap:10px;
+    }
+    .hud-score {
+      display:flex; flex-direction:column; align-items:flex-start;
+    }
+    .hud-score-val { font-size:1.4rem; font-weight:900; color:var(--yellow); text-shadow:0 0 10px var(--yellow-glow); line-height:1; }
+    .hud-score-label { font-size:0.6rem; font-weight:800; color:var(--muted); text-transform:uppercase; }
+
+    .hud-combo {
+      flex:1; text-align:center;
+    }
+    .combo-val { font-size:1.1rem; font-weight:900; color:var(--cyan); transition:all 0.2s; }
+    .combo-val.bump { animation:combobump 0.25s ease-out; }
+    @keyframes combobump { 0%{transform:scale(1)} 50%{transform:scale(1.5)} 100%{transform:scale(1)} }
+    .combo-label { font-size:0.6rem; font-weight:800; color:var(--muted); text-transform:uppercase; }
+
+    /* Timer bar */
+    .timer-wrap { position:relative; flex-shrink:0; left:0; right:0; height:6px; background:var(--surface2); }
+    .timer-bar { height:100%; background:linear-gradient(90deg,var(--cyan),var(--green)); transition:width 0.1s linear; border-radius:0 4px 4px 0; }
+    .timer-bar.warn { background:linear-gradient(90deg,var(--red),#ff8800); animation:timer-pulse 0.5s ease-in-out infinite; }
+    @keyframes timer-pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+
+    /* Falling zone */
+    .fall-zone {
+      flex:1;
+      position:relative;
+      width:100%;
+      overflow:hidden;
+      min-height:0;
+    }
+
+    /* Trash item */
+    .trash-item {
+      position:absolute;
+      left:50%; transform:translateX(-50%);
+      display:flex; flex-direction:column; align-items:center;
+      cursor:pointer; user-select:none;
+      animation:fall-in 0.4s cubic-bezier(0.34,1.56,0.64,1);
+    }
+    @keyframes fall-in { from{opacity:0;transform:translateX(-50%) translateY(-40px) scale(0.5)} to{opacity:1;transform:translateX(-50%) translateY(0) scale(1)} }
+
+    .trash-emoji-big { font-size:3.5rem; line-height:1; filter:drop-shadow(0 4px 12px rgba(0,0,0,0.5)); }
+    .trash-name { font-size:0.75rem; font-weight:800; color:var(--text); margin-top:4px;
+      background:rgba(10,14,26,0.7); padding:2px 8px; border-radius:20px; }
+
+    /* Bins */
+    .bins {
+      position:relative; flex-shrink:0;
+      padding:12px 10px max(16px,env(safe-area-inset-bottom));
+      display:grid; grid-template-columns:repeat(5,1fr); gap:6px; z-index:10;
+    }
+    .bin {
+      display:flex; flex-direction:column; align-items:center; justify-content:center;
+      gap:4px; padding:12px 4px;
+      border-radius:18px; border:2px solid;
+      cursor:pointer; transition:all 0.15s; user-select:none;
+      -webkit-tap-highlight-color:transparent;
+    }
+    .bin:active { transform:scale(0.93); }
+    .bin.shake { animation:bin-shake 0.35s ease-in-out; }
+    @keyframes bin-shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-6px)} 40%{transform:translateX(6px)} 60%{transform:translateX(-4px)} 80%{transform:translateX(4px)} }
+    .bin.flash-right { animation:flash-green 0.35s ease-out; }
+    @keyframes flash-green { 0%{box-shadow:0 0 0 rgba(0,204,102,0)} 30%{box-shadow:0 0 24px rgba(0,204,102,0.9)} 100%{box-shadow:none} }
+    .bin.flash-wrong { animation:flash-red 0.35s ease-out; }
+    @keyframes flash-red { 0%{box-shadow:0 0 0 rgba(255,68,68,0)} 30%{box-shadow:0 0 24px rgba(255,68,68,0.9)} 100%{box-shadow:none} }
+
+    .bin-icon { font-size:1.6rem; }
+    .bin-label { font-size:0.55rem; font-weight:900; text-transform:uppercase; letter-spacing:0.5px; text-align:center; line-height:1.2; }
+
+    /* Bin colors */
+    .bin-gelb  { background:rgba(255,200,0,0.08); border-color:rgba(255,200,0,0.4); color:#ffcc00; }
+    .bin-glas  { background:rgba(0,180,100,0.08); border-color:rgba(0,180,100,0.4); color:#00cc66; }
+    .bin-papier{ background:rgba(0,140,220,0.08); border-color:rgba(0,140,220,0.4); color:#00d4ff; }
+    .bin-bio   { background:rgba(120,80,0,0.12);  border-color:rgba(180,120,0,0.4); color:#c87800; }
+    .bin-rest  { background:rgba(100,100,120,0.08);border-color:rgba(100,100,120,0.4);color:#8899aa; }
+
+    /* Floating +/- points */
+    .float-pts {
+      position:fixed; font-size:1.4rem; font-weight:900;
+      pointer-events:none; z-index:100;
+      animation:float-up 0.9s ease-out forwards;
+    }
+    @keyframes float-up { 0%{opacity:1;transform:translateY(0) scale(1)} 100%{opacity:0;transform:translateY(-80px) scale(0.7)} }
+    .float-pts.correct { color:var(--green); text-shadow:0 0 10px var(--green-glow); }
+    .float-pts.wrong   { color:var(--red); text-shadow:0 0 10px rgba(255,68,68,0.5); }
+
+    /* ── END SCREEN ── */
+    .end-card {
+      background:var(--surface); border:1px solid rgba(0,212,255,0.3);
+      border-radius:28px; padding:32px 24px; width:100%; max-width:340px; text-align:center;
+      box-shadow:0 0 60px rgba(0,117,190,0.3);
+    }
+    .end-icon { font-size:3.5rem; margin-bottom:10px; }
+    .end-title { font-size:1.5rem; font-weight:900; color:var(--cyan); margin-bottom:4px; }
+    .end-sub { font-size:0.85rem; color:var(--muted); font-weight:700; margin-bottom:24px; }
+    .end-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:20px; }
+    .end-stat-val { font-size:1.6rem; font-weight:900; color:var(--yellow); }
+    .end-stat-label { font-size:0.65rem; color:var(--muted); font-weight:800; text-transform:uppercase; margin-top:2px; }
+    .coins-earned {
+      background:rgba(255,204,0,0.1); border:1px solid rgba(255,204,0,0.3);
+      border-radius:16px; padding:14px; margin-bottom:20px;
+      font-size:1rem; font-weight:900; color:var(--yellow);
+    }
+    .new-hs { font-size:0.75rem; font-weight:800; color:var(--green); text-align:center; margin-bottom:16px; display:none; }
+    .end-btns { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    .btn-play-again {
+      background:linear-gradient(135deg,#00aa55,var(--green)); border:none;
+      border-radius:16px; color:#001a0a; font-family:'Nunito',sans-serif;
+      font-weight:900; font-size:0.9rem; padding:14px; cursor:pointer;
+      box-shadow:0 4px 16px var(--green-glow);
+    }
+    .btn-home {
+      background:var(--surface2); border:1px solid var(--border);
+      border-radius:16px; color:var(--text); font-family:'Nunito',sans-serif;
+      font-weight:800; font-size:0.9rem; padding:14px; cursor:pointer;
+      text-decoration:none; display:flex; align-items:center; justify-content:center;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══════════════ START SCREEN ══════════════ -->
+<div class="screen" id="screen-start">
+  <a href="index.html" class="back-btn" style="position:absolute;top:max(14px,env(safe-area-inset-top));left:16px;">←</a>
+  <div class="coin-display" style="position:absolute;top:max(14px,env(safe-area-inset-top));right:16px;">🪙 <span id="start-coins">0</span></div>
+
+  <div class="game-logo">♻️</div>
+  <div class="game-title">Sortier-Blitz</div>
+  <div class="game-sub">Sortiere den Müll – so schnell wie möglich!</div>
+
+  <div class="highscore-box">
+    <div class="hs-label">🏆 Highscore</div>
+    <div class="hs-val" id="hs-display">0</div>
+  </div>
+
+  <div class="bin-preview">
+    <div class="bin-chip bin-gelb" style="border-color:rgba(255,200,0,0.4);color:#ffcc00;">
+      <span class="bi">🟡</span><span class="bl">Gelb</span>
+    </div>
+    <div class="bin-chip bin-glas" style="border-color:rgba(0,180,100,0.4);color:#00cc66;">
+      <span class="bi">🟢</span><span class="bl">Glas</span>
+    </div>
+    <div class="bin-chip bin-papier" style="border-color:rgba(0,140,220,0.4);color:#00d4ff;">
+      <span class="bi">🔵</span><span class="bl">Papier</span>
+    </div>
+    <div class="bin-chip bin-bio" style="border-color:rgba(180,120,0,0.4);color:#c87800;">
+      <span class="bi">🌱</span><span class="bl">Bio</span>
+    </div>
+    <div class="bin-chip bin-rest" style="border-color:rgba(100,100,120,0.4);color:#8899aa;">
+      <span class="bi">⚫</span><span class="bl">Rest</span>
+    </div>
+  </div>
+
+  <div class="how-to">
+    <div class="how-title">So geht's</div>
+    <div class="how-row"><span class="how-icon">👀</span>Schau dir den Müll an</div>
+    <div class="how-row"><span class="how-icon">🗑️</span>Tippe die richtige Tonne</div>
+    <div class="how-row"><span class="how-icon">⚡</span>Combo × für Serien!</div>
+    <div class="how-row"><span class="how-icon">⏱️</span>60 Sekunden – so viel wie möglich</div>
+    <div class="how-row"><span class="how-icon">🪙</span>Punkte = Coins für den Shop</div>
+  </div>
+
+  <button class="start-btn" onclick="startGame()">🚀 Spielen!</button>
+</div>
+
+<!-- ══════════════ GAME SCREEN ══════════════ -->
+<div class="screen hidden" id="screen-game" style="padding:0;justify-content:flex-start;flex-direction:column;align-items:stretch;">
+
+  <div class="game-hud">
+    <div class="hud-score">
+      <div class="hud-score-val" id="hud-score">0</div>
+      <div class="hud-score-label">Punkte</div>
+    </div>
+    <div class="hud-combo">
+      <div class="combo-val" id="combo-val">×1</div>
+      <div class="combo-label">Combo</div>
+    </div>
+    <div style="text-align:right;">
+      <div style="font-size:1.1rem;font-weight:900;color:var(--cyan)" id="hud-timer">60</div>
+      <div style="font-size:0.6rem;font-weight:800;color:var(--muted);text-transform:uppercase;">Sek</div>
+    </div>
+  </div>
+
+  <div class="timer-wrap">
+    <div class="timer-bar" id="timer-bar" style="width:100%"></div>
+  </div>
+
+  <div class="fall-zone" id="fall-zone"></div>
+
+  <div class="bins">
+    <div class="bin bin-gelb"  onclick="trySort('gelb')"  id="bin-gelb">
+      <span class="bin-icon">🟡</span>
+      <span class="bin-label">Gelbe<br>Tonne</span>
+    </div>
+    <div class="bin bin-glas"  onclick="trySort('glas')"  id="bin-glas">
+      <span class="bin-icon">🫙</span>
+      <span class="bin-label">Glas<br>Container</span>
+    </div>
+    <div class="bin bin-papier" onclick="trySort('papier')" id="bin-papier">
+      <span class="bin-icon">📦</span>
+      <span class="bin-label">Papier<br>Tonne</span>
+    </div>
+    <div class="bin bin-bio"   onclick="trySort('bio')"   id="bin-bio">
+      <span class="bin-icon">🌱</span>
+      <span class="bin-label">Bio<br>Tonne</span>
+    </div>
+    <div class="bin bin-rest" onclick="trySort('rest')" id="bin-rest">
+      <span class="bin-icon">🗑️</span>
+      <span class="bin-label">Rest<br>Müll</span>
+    </div>
+  </div>
+
+</div>
+
+<!-- ══════════════ END SCREEN ══════════════ -->
+<div class="screen hidden" id="screen-end">
+  <div class="end-card">
+    <div class="end-icon" id="end-icon">🏆</div>
+    <div class="end-title" id="end-title">Super!</div>
+    <div class="end-sub" id="end-sub">Session beendet</div>
+    <div class="end-stats">
+      <div>
+        <div class="end-stat-val" id="end-score">0</div>
+        <div class="end-stat-label">Punkte</div>
+      </div>
+      <div>
+        <div class="end-stat-val" id="end-correct">0</div>
+        <div class="end-stat-label">Richtig</div>
+      </div>
+      <div>
+        <div class="end-stat-val" id="end-combo">×1</div>
+        <div class="end-stat-label">Max Combo</div>
+      </div>
+    </div>
+    <div class="coins-earned" id="coins-earned">🪙 +0 Coins verdient!</div>
+    <div class="new-hs" id="new-hs">🏆 Neuer Highscore!</div>
+    <div class="end-btns">
+      <button class="btn-play-again" onclick="startGame()">🔄 Nochmal</button>
+      <a href="index.html" class="btn-home">🏠 Home</a>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ── Trash items database ──
+  const ITEMS = [
+    // Biotonne
+    { emoji:'🍌', name:'Bananenschale',  bin:'bio' },
+    { emoji:'🥚', name:'Eierschale',     bin:'bio' },
+    { emoji:'☕', name:'Kaffeesatz',     bin:'bio' },
+    { emoji:'🍎', name:'Apfelrest',      bin:'bio' },
+    { emoji:'🌿', name:'Gartenabfall',   bin:'bio' },
+    { emoji:'🫖', name:'Teebeutel',      bin:'bio' },
+    { emoji:'🥕', name:'Gemüsereste',    bin:'bio' },
+    { emoji:'🍞', name:'Altbrot',        bin:'bio' },
+    // Gelbe Tonne (Plastik / Metall / Verbundstoff)
+    { emoji:'🛍️', name:'Plastiktüte',    bin:'gelb' },
+    { emoji:'🧴', name:'Shampoo-Flasche',bin:'gelb' },
+    { emoji:'🥤', name:'Plastikbecher',   bin:'gelb' },
+    { emoji:'🫙', name:'Joghurtbecher',   bin:'gelb' },
+    { emoji:'🥫', name:'Konservendose',   bin:'gelb' },
+    { emoji:'🍫', name:'Schokopack',      bin:'gelb' },
+    { emoji:'🧃', name:'Getränkekarton',  bin:'gelb' },
+    { emoji:'🪣', name:'Kunststoffeimer', bin:'gelb' },
+    // Glas
+    { emoji:'🍾', name:'Weinflasche',     bin:'glas' },
+    { emoji:'🫙', name:'Einmachglas',     bin:'glas' },
+    { emoji:'🍶', name:'Glasflasche',     bin:'glas' },
+    { emoji:'🥂', name:'Sektglas',        bin:'glas' },
+    { emoji:'🧪', name:'Laborfläschchen', bin:'glas' },
+    { emoji:'💊', name:'Medizinflasche',  bin:'glas' },
+    // Papier
+    { emoji:'📰', name:'Zeitung',         bin:'papier' },
+    { emoji:'📦', name:'Karton',          bin:'papier' },
+    { emoji:'📚', name:'Alte Bücher',     bin:'papier' },
+    { emoji:'🗞️', name:'Zeitschrift',     bin:'papier' },
+    { emoji:'✉️', name:'Briefumschlag',   bin:'papier' },
+    { emoji:'🗒️', name:'Notizheft',       bin:'papier' },
+    // Restmüll
+    { emoji:'🍕', name:'Pizzakarton (fettig)', bin:'rest' },
+    { emoji:'💡', name:'Glühbirne',       bin:'rest' },
+    { emoji:'🔋', name:'Batterie',        bin:'rest' },
+    { emoji:'🩺', name:'Pflaster',        bin:'rest' },
+    { emoji:'🧼', name:'Seifenreste',     bin:'rest' },
+    { emoji:'🍬', name:'Bonbonpapier',    bin:'rest' },
+    { emoji:'🖊️', name:'Kugelschreiber',  bin:'rest' },
+    { emoji:'🪥', name:'Zahnbürste',      bin:'rest' },
+  ];
+
+  // ── State ──
+  let score = 0, combo = 1, maxCombo = 1, correctCount = 0;
+  let currentItem = null;
+  let timeLeft = 60;
+  let timerInterval = null;
+  let gameActive = false;
+  const GAME_DURATION = 60;
+
+  // ── Screens ──
+  function showScreen(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
+    document.getElementById(id).classList.remove('hidden');
+  }
+
+  // ── Init ──
+  function initStart() {
+    const hs = parseInt(localStorage.getItem('sortierblitz_hs') || '0');
+    document.getElementById('hs-display').textContent = hs;
+    const coins = window.AvatarStore ? window.AvatarStore.getCoins() : parseInt(localStorage.getItem('tb_coins') || '0');
+    document.getElementById('start-coins').textContent = coins;
+    showScreen('screen-start');
+  }
+
+  // ── Start Game ──
+  function startGame() {
+    score = 0; combo = 1; maxCombo = 1; correctCount = 0;
+    timeLeft = GAME_DURATION;
+    gameActive = true;
+
+    document.getElementById('hud-score').textContent = '0';
+    document.getElementById('combo-val').textContent = '×1';
+    document.getElementById('hud-timer').textContent = '60';
+    document.getElementById('timer-bar').style.width = '100%';
+    document.getElementById('timer-bar').classList.remove('warn');
+    document.getElementById('fall-zone').innerHTML = '';
+
+    showScreen('screen-game');
+    spawnItem();
+
+    clearInterval(timerInterval);
+    timerInterval = setInterval(tick, 100);
+  }
+
+  // ── Timer ──
+  function tick() {
+    if (!gameActive) return;
+    timeLeft -= 0.1;
+    if (timeLeft <= 0) { timeLeft = 0; endGame(); return; }
+
+    const pct = (timeLeft / GAME_DURATION) * 100;
+    document.getElementById('timer-bar').style.width = pct + '%';
+    document.getElementById('hud-timer').textContent = Math.ceil(timeLeft);
+
+    if (timeLeft <= 10) document.getElementById('timer-bar').classList.add('warn');
+  }
+
+  // ── Spawn Item ──
+  function spawnItem() {
+    if (!gameActive) return;
+    const item = ITEMS[Math.floor(Math.random() * ITEMS.length)];
+    currentItem = item;
+
+    const zone = document.getElementById('fall-zone');
+    zone.innerHTML = '';
+
+    const el = document.createElement('div');
+    el.className = 'trash-item';
+    el.style.top = '20%';
+    el.innerHTML = `<div class="trash-emoji-big">${item.emoji}</div><div class="trash-name">${item.name}</div>`;
+    zone.appendChild(el);
+  }
+
+  // ── Sort Attempt ──
+  function trySort(bin) {
+    if (!gameActive || !currentItem) return;
+
+    const binEl = document.getElementById('bin-' + bin);
+
+    if (bin === currentItem.bin) {
+      // Correct!
+      correctCount++;
+      const pts = 10 * combo;
+      score += pts;
+      combo = Math.min(combo + 1, 8);
+      maxCombo = Math.max(maxCombo, combo);
+      timeLeft = Math.min(timeLeft + 1, GAME_DURATION); // +1 sec bonus
+
+      document.getElementById('hud-score').textContent = score;
+      const cv = document.getElementById('combo-val');
+      cv.textContent = '×' + combo;
+      cv.classList.remove('bump');
+      void cv.offsetWidth;
+      cv.classList.add('bump');
+
+      binEl.classList.remove('flash-right');
+      void binEl.offsetWidth;
+      binEl.classList.add('flash-right');
+
+      floatPoints('+' + pts, true, binEl);
+    } else {
+      // Wrong
+      combo = 1;
+      timeLeft = Math.max(timeLeft - 3, 0); // -3 sec penalty
+
+      document.getElementById('combo-val').textContent = '×1';
+      binEl.classList.remove('shake', 'flash-wrong');
+      void binEl.offsetWidth;
+      binEl.classList.add('shake', 'flash-wrong');
+
+      floatPoints('-3s', false, binEl);
+    }
+
+    // Next item after short delay
+    setTimeout(spawnItem, 180);
+  }
+
+  // ── Floating Points ──
+  function floatPoints(text, correct, binEl) {
+    const rect = binEl.getBoundingClientRect();
+    const el = document.createElement('div');
+    el.className = 'float-pts ' + (correct ? 'correct' : 'wrong');
+    el.textContent = text;
+    el.style.left = (rect.left + rect.width / 2) + 'px';
+    el.style.top  = (rect.top - 10) + 'px';
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 900);
+  }
+
+  // ── End Game ──
+  function endGame() {
+    gameActive = false;
+    clearInterval(timerInterval);
+    document.getElementById('fall-zone').innerHTML = '';
+
+    // Coins earned = score / 5 (capped at 200 per game)
+    const coinsEarned = Math.min(Math.floor(score / 5), 200);
+
+    // Save coins
+    if (window.AvatarStore) {
+      const cur = window.AvatarStore.getCoins();
+      localStorage.setItem('tb_coins', cur + coinsEarned);
+    } else {
+      const cur = parseInt(localStorage.getItem('tb_coins') || '0');
+      localStorage.setItem('tb_coins', cur + coinsEarned);
+    }
+
+    // Highscore
+    const prevHs = parseInt(localStorage.getItem('sortierblitz_hs') || '0');
+    const isNewHs = score > prevHs;
+    if (isNewHs) localStorage.setItem('sortierblitz_hs', score);
+
+    // Fill end screen
+    const accuracy = correctCount > 0 ? Math.round(correctCount / (correctCount + (correctCount < score/10 ? 1 : 0)) * 100) : 0;
+    document.getElementById('end-score').textContent   = score;
+    document.getElementById('end-correct').textContent = correctCount;
+    document.getElementById('end-combo').textContent   = '×' + maxCombo;
+    document.getElementById('coins-earned').textContent = `🪙 +${coinsEarned} Coins verdient!`;
+    document.getElementById('new-hs').style.display    = isNewHs ? 'block' : 'none';
+
+    // Title based on score
+    let icon = '😅', title = 'Nicht schlecht!', sub = 'Versuch es nochmal!';
+    if (score >= 200) { icon='🏆'; title='Meister!';    sub='Unglaubliche Leistung!'; }
+    else if (score >= 120) { icon='🥇'; title='Klasse!'; sub='Du kennst deinen Müll!'; }
+    else if (score >= 60) { icon='👍'; title='Gut gemacht!'; sub='Weiter so!'; }
+    document.getElementById('end-icon').textContent  = icon;
+    document.getElementById('end-title').textContent = title;
+    document.getElementById('end-sub').textContent   = sub;
+
+    showScreen('screen-end');
+  }
+
+  // ── Boot ──
+  window.addEventListener('load', initStart);
+</script>
+</body>
+</html>

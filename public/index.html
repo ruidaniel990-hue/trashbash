@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+  <meta name="theme-color" content="#0a0e1a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Trash Bash</title>
+  <link rel="manifest" href="manifest.json">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg:         #0a0e1a;
+      --surface:    #111827;
+      --surface2:   #1a2332;
+      --border:     #1e3a5f;
+      --primary:    #0075be;
+      --primary-glow: rgba(0,117,190,0.4);
+      --cyan:       #00d4ff;
+      --cyan-glow:  rgba(0,212,255,0.3);
+      --yellow:     #ffcc00;
+      --yellow-glow:rgba(255,204,0,0.35);
+      --green:      #00cc66;
+      --red:        #ff4444;
+      --text:       #e8f4fd;
+      --muted:      #6b8ca4;
+    }
+
+    html, body {
+      height: 100%;
+      font-family: 'Nunito', -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      overflow-x: hidden;
+    }
+
+    /* ── Radar Background ── */
+    body::before {
+      content: '';
+      position: fixed;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background:
+        radial-gradient(circle at 50% 40%, rgba(0,117,190,0.07) 0%, transparent 60%),
+        radial-gradient(circle at 80% 80%, rgba(0,212,255,0.04) 0%, transparent 40%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── Header ── */
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(10,14,26,0.92);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+      padding: max(0.9rem, env(safe-area-inset-top)) 1.2rem 0.9rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 1.5rem;
+      font-weight: 900;
+      color: var(--cyan);
+      text-shadow: 0 0 20px var(--cyan-glow);
+      letter-spacing: -0.5px;
+    }
+
+    .logo-icon {
+      width: 38px;
+      height: 38px;
+      background: linear-gradient(135deg, var(--primary), var(--cyan));
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+      box-shadow: 0 0 14px var(--cyan-glow);
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .icon-btn {
+      width: 38px; height: 38px;
+      border-radius: 50%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-size: 1rem;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.2s;
+    }
+    .icon-btn:hover { border-color: var(--cyan); box-shadow: 0 0 10px var(--cyan-glow); }
+
+    /* ── Main ── */
+    main {
+      position: relative;
+      z-index: 1;
+      padding: 20px 16px 100px;
+      max-width: 480px;
+      margin: 0 auto;
+    }
+
+    /* ── Player Card ── */
+    .player-card {
+      background: linear-gradient(135deg, #0d1f35 0%, #0a1828 100%);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 24px 20px 20px;
+      margin-bottom: 20px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(0,212,255,0.1);
+    }
+
+    .player-card::after {
+      content: '';
+      position: absolute;
+      top: 0; right: 0;
+      width: 140px; height: 140px;
+      background: radial-gradient(circle, rgba(0,117,190,0.12) 0%, transparent 70%);
+    }
+
+    .player-top {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+
+    .avatar {
+      width: 64px; height: 64px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary), var(--cyan));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.8rem;
+      box-shadow: 0 0 20px var(--cyan-glow), 0 0 40px rgba(0,117,190,0.2);
+      border: 3px solid rgba(0,212,255,0.4);
+      flex-shrink: 0;
+      position: relative;
+      z-index: 1;
+    }
+
+    .player-info { flex: 1; }
+    .player-name {
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: var(--text);
+    }
+    .player-team {
+      font-size: 0.8rem;
+      color: var(--cyan);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .level-badge {
+      background: var(--yellow);
+      color: #1a1000;
+      font-weight: 900;
+      font-size: 0.85rem;
+      padding: 4px 12px;
+      border-radius: 20px;
+      box-shadow: 0 0 12px var(--yellow-glow);
+    }
+
+    .xp-section { position: relative; z-index: 1; }
+    .xp-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.78rem;
+      color: var(--muted);
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .xp-bar {
+      height: 10px;
+      background: rgba(255,255,255,0.08);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .xp-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--yellow) 0%, #ffaa00 100%);
+      border-radius: 10px;
+      box-shadow: 0 0 10px var(--yellow-glow);
+      transition: width 1s ease;
+    }
+
+    /* ── Quick Stats Row ── */
+    .quick-stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .stat-pill {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 14px 10px;
+      text-align: center;
+      transition: all 0.2s;
+      cursor: pointer;
+    }
+    .stat-pill:hover {
+      border-color: var(--cyan);
+      box-shadow: 0 0 12px var(--cyan-glow);
+      transform: translateY(-2px);
+    }
+    .stat-pill-val {
+      font-size: 1.4rem;
+      font-weight: 900;
+      color: var(--cyan);
+      text-shadow: 0 0 12px var(--cyan-glow);
+    }
+    .stat-pill-label {
+      font-size: 0.7rem;
+      color: var(--muted);
+      font-weight: 700;
+      text-transform: uppercase;
+      margin-top: 2px;
+    }
+
+    /* ── Section Title ── */
+    .section-title {
+      font-size: 0.75rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--muted);
+      margin-bottom: 12px;
+      margin-top: 24px;
+    }
+
+    /* ── Action Cards ── */
+    .action-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .action-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 20px 16px;
+      cursor: pointer;
+      transition: all 0.25s;
+      text-decoration: none;
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .action-card:hover {
+      transform: translateY(-4px);
+    }
+    .action-card.primary {
+      background: linear-gradient(135deg, #003d7a 0%, #0058a8 100%);
+      border-color: rgba(0,117,190,0.5);
+      box-shadow: 0 8px 24px rgba(0,75,150,0.3);
+    }
+    .action-card.primary:hover {
+      box-shadow: 0 12px 32px rgba(0,75,150,0.5), 0 0 20px var(--primary-glow);
+    }
+    .action-card.accent {
+      background: linear-gradient(135deg, #1a3a1a 0%, #1f4f1f 100%);
+      border-color: rgba(0,204,102,0.3);
+    }
+    .action-card.accent:hover {
+      box-shadow: 0 8px 24px rgba(0,204,102,0.2), 0 0 16px rgba(0,204,102,0.2);
+    }
+    .action-icon { font-size: 1.8rem; }
+    .action-title { font-size: 0.95rem; font-weight: 800; }
+    .action-sub { font-size: 0.75rem; color: var(--muted); font-weight: 600; }
+
+    /* ── Achievement Row ── */
+    .badge-row {
+      display: flex;
+      gap: 10px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+      scrollbar-width: none;
+      margin-bottom: 20px;
+    }
+    .badge-row::-webkit-scrollbar { display: none; }
+
+    .badge-chip {
+      flex-shrink: 0;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 50px;
+      padding: 8px 14px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--text);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .badge-chip.earned {
+      border-color: var(--yellow);
+      background: rgba(255,204,0,0.1);
+      color: var(--yellow);
+      box-shadow: 0 0 10px var(--yellow-glow);
+    }
+    .badge-chip:hover { transform: scale(1.05); }
+
+    /* ── Hotspot Alert ── */
+    .hotspot-alert {
+      background: linear-gradient(135deg, #2a0a0a 0%, #3a1010 100%);
+      border: 1px solid rgba(255,68,68,0.3);
+      border-radius: 20px;
+      padding: 16px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .hotspot-alert:hover {
+      border-color: var(--red);
+      box-shadow: 0 0 16px rgba(255,68,68,0.2);
+      transform: translateX(4px);
+    }
+    .hotspot-dot {
+      width: 12px; height: 12px;
+      border-radius: 50%;
+      background: var(--red);
+      box-shadow: 0 0 8px var(--red);
+      animation: pulse-dot 1.5s infinite;
+      flex-shrink: 0;
+    }
+    @keyframes pulse-dot {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.3); opacity: 0.7; }
+    }
+    .hotspot-dot.yellow { background: var(--yellow); box-shadow: 0 0 8px var(--yellow); }
+    .hotspot-info { flex: 1; }
+    .hotspot-title { font-size: 0.9rem; font-weight: 800; }
+    .hotspot-sub { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
+    .hotspot-pts {
+      font-size: 0.85rem;
+      font-weight: 800;
+      color: var(--green);
+    }
+
+    /* ── How to Play ── */
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .step {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px 10px;
+      text-align: center;
+    }
+    .step-num {
+      width: 26px; height: 26px;
+      background: var(--primary);
+      border-radius: 50%;
+      font-size: 0.75rem;
+      font-weight: 900;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 8px;
+      box-shadow: 0 0 10px var(--primary-glow);
+    }
+    .step-icon { font-size: 1.4rem; margin-bottom: 6px; }
+    .step-label { font-size: 0.72rem; font-weight: 700; color: var(--muted); }
+
+    /* ── Bottom Navigation ── */
+    .bottom-nav {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      z-index: 100;
+      background: rgba(10,14,26,0.95);
+      backdrop-filter: blur(20px);
+      border-top: 1px solid var(--border);
+      padding: 10px 0 max(10px, env(safe-area-inset-bottom));
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+    }
+
+    .nav-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      cursor: pointer;
+      padding: 4px 16px;
+      border-radius: 12px;
+      transition: all 0.2s;
+      text-decoration: none;
+      color: var(--muted);
+      font-size: 0.65rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .nav-item.active { color: var(--cyan); }
+    .nav-item-icon { font-size: 1.3rem; }
+    .nav-item.active .nav-item-icon {
+      filter: drop-shadow(0 0 6px var(--cyan));
+    }
+
+    /* Center FAB */
+    .nav-fab {
+      width: 60px; height: 60px;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--cyan) 100%);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.6rem;
+      box-shadow: 0 0 20px var(--cyan-glow), 0 4px 16px rgba(0,0,0,0.4);
+      cursor: pointer;
+      transition: all 0.2s;
+      border: 3px solid rgba(0,212,255,0.3);
+      margin-top: -24px;
+      flex-shrink: 0;
+    }
+    .nav-fab:hover {
+      transform: scale(1.08);
+      box-shadow: 0 0 30px var(--cyan-glow), 0 6px 20px rgba(0,0,0,0.5);
+    }
+    .nav-fab:active { transform: scale(0.96); }
+
+    /* ── Next Pickup Banner ── */
+    .pickup-banner {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: linear-gradient(135deg, #0d1f35 0%, #0a1828 100%);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 14px 16px;
+      margin-bottom: 16px;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-decoration: none;
+      color: var(--text);
+    }
+    .pickup-banner:hover { border-color: rgba(0,212,255,0.3); transform: translateY(-2px); }
+    .pickup-banner-icon {
+      width: 42px; height: 42px;
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.4rem;
+      flex-shrink: 0;
+    }
+    .pickup-banner-icon.urgent { background: rgba(255,68,68,0.15); }
+    .pickup-banner-icon.soon { background: rgba(255,204,0,0.12); }
+    .pickup-banner-icon.normal { background: rgba(0,204,102,0.1); }
+    .pickup-banner-info { flex: 1; }
+    .pickup-banner-label {
+      font-size: 0.6rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--muted);
+    }
+    .pickup-banner-title {
+      font-size: 0.9rem;
+      font-weight: 900;
+    }
+    .pickup-banner-when {
+      font-size: 1.1rem;
+      font-weight: 900;
+      text-align: right;
+      flex-shrink: 0;
+    }
+    .pickup-banner-when.urgent { color: var(--red); }
+    .pickup-banner-when.soon { color: var(--yellow); }
+    .pickup-banner-when.normal { color: var(--green); }
+    @keyframes pickupPulse {
+      0%,100% { box-shadow: 0 0 0 0 rgba(255,68,68,0); }
+      50% { box-shadow: 0 0 12px 2px rgba(255,68,68,0.2); }
+    }
+    .pickup-banner.is-urgent { animation: pickupPulse 2s ease-in-out infinite; border-color: rgba(255,68,68,0.3); }
+
+    /* ── Avatar Idle Animation ── */
+    @keyframes avatarIdle {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-3px); }
+    }
+    .avatar svg {
+      animation: avatarIdle 2.5s ease-in-out infinite;
+    }
+
+    /* ── Toast ── */
+    .toast {
+      position: fixed;
+      bottom: 90px;
+      left: 50%; transform: translateX(-50%);
+      background: rgba(0,212,255,0.15);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(0,212,255,0.3);
+      color: var(--cyan);
+      padding: 12px 22px;
+      border-radius: 50px;
+      font-size: 0.9rem;
+      font-weight: 700;
+      animation: toastIn 0.3s ease-out;
+      z-index: 2000;
+      white-space: nowrap;
+      box-shadow: 0 0 20px var(--cyan-glow);
+    }
+    @keyframes toastIn {
+      from { opacity: 0; transform: translateX(-50%) translateY(20px); }
+      to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+    }
+
+    /* ── Install Banner ── */
+    .install-banner {
+      background: linear-gradient(135deg, #001f3d 0%, #003366 100%);
+      border: 1px solid rgba(0,212,255,0.2);
+      border-radius: 16px;
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .install-banner.hidden { display: none; }
+    .install-text { flex: 1; font-size: 0.85rem; font-weight: 700; }
+    .install-text small { display: block; color: var(--muted); font-weight: 600; }
+    .btn-install {
+      background: var(--cyan);
+      color: #001a26;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-weight: 900;
+      font-size: 0.8rem;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="logo">
+      <div class="logo-icon">♻️</div>
+      Trash Bash
+    </div>
+    <div class="header-right">
+      <button class="icon-btn" id="share-btn" title="Teilen">📤</button>
+    </div>
+  </header>
+
+  <main>
+
+    <!-- Install Banner -->
+    <div class="install-banner hidden" id="install-prompt">
+      <div style="font-size:1.5rem">📲</div>
+      <div class="install-text">
+        App installieren
+        <small>Schneller Zugriff vom Home-Screen</small>
+      </div>
+      <button class="btn-install" id="install-action">Ja!</button>
+    </div>
+
+    <!-- Player Card -->
+    <div class="player-card" onclick="window.location.href='profile.html'" style="cursor:pointer;">
+      <div class="player-top">
+        <div class="avatar" id="player-avatar" style="padding:0;overflow:hidden;"></div>
+        <div class="player-info">
+          <div class="player-name" id="player-name">DemoUser</div>
+          <div id="player-coins" style="font-size:0.8rem;color:#ffcc00;font-weight:800;">🪙 0</div>
+          <div class="player-team" id="player-team">Team Eco Warriors</div>
+        </div>
+        <div class="level-badge" id="player-level-badge">LVL 1</div>
+      </div>
+      <div class="xp-section">
+        <div class="xp-label">
+          <span id="xp-current">XP: 0</span>
+          <span id="xp-next">Nächstes Level: 500</span>
+        </div>
+        <div class="xp-bar">
+          <div class="xp-fill" id="xp-fill-bar" style="width: 0%;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="quick-stats">
+      <div class="stat-pill">
+        <div class="stat-pill-val" id="stat-punkte">0</div>
+        <div class="stat-pill-label">Punkte</div>
+      </div>
+      <div class="stat-pill">
+        <div class="stat-pill-val" id="stat-kg">0kg</div>
+        <div class="stat-pill-label">Gesammelt</div>
+      </div>
+      <div class="stat-pill">
+        <div class="stat-pill-val" id="stat-rank">#–</div>
+        <div class="stat-pill-label">Ranking</div>
+      </div>
+    </div>
+
+    <!-- Next Trash Pickup Banner -->
+    <div id="next-pickup-banner" style="display:none;"></div>
+
+    <!-- Action Cards -->
+    <div class="section-title">Aktionen</div>
+    <div class="action-grid">
+      <a href="app.html" class="action-card primary">
+        <div class="action-icon">🗺️</div>
+        <div class="action-title">Tour starten</div>
+        <div class="action-sub">GPS + Foto</div>
+      </a>
+      <a href="dashboard.html" class="action-card accent">
+        <div class="action-icon">📊</div>
+        <div class="action-title">Dashboard</div>
+        <div class="action-sub">Stats & Badges</div>
+      </a>
+      <a href="hotspots.html" class="action-card" style="background:linear-gradient(135deg,#2a0a0a 0%,#3a1010 100%);border-color:rgba(255,68,68,0.35);">
+        <div class="action-icon">🔥</div>
+        <div class="action-title">Hotspots</div>
+        <div class="action-sub">Karte & helfen</div>
+      </a>
+      <a href="trashpeche.html" class="action-card" style="background:linear-gradient(135deg,#0a1a2e 0%,#0d2844 100%);border-color:rgba(0,212,255,0.3);">
+        <div class="action-icon">📅</div>
+        <div class="action-title">Trashpeche</div>
+        <div class="action-sub">Abfuhrkalender</div>
+      </a>
+      <a href="avatar.html" class="action-card" style="background:linear-gradient(135deg,#1a1040 0%,#2d1b6e 100%);border-color:rgba(139,92,246,0.4);">
+        <div class="action-icon">👕</div>
+        <div class="action-title">Garderobe</div>
+        <div class="action-sub">Charakter anpassen</div>
+      </a>
+      <a href="minigame.html" class="action-card" style="background:linear-gradient(135deg,#0a1a0a 0%,#0f2e14 100%);border-color:rgba(0,204,102,0.4);">
+        <div class="action-icon">🎮</div>
+        <div class="action-title">Sortier-Blitz</div>
+        <div class="action-sub">Minigame · Coins</div>
+      </a>
+    </div>
+
+    <!-- Badges -->
+    <div class="section-title">Errungenschaften</div>
+    <div class="badge-row">
+      <div class="badge-chip earned">🥇 Gold Sammler</div>
+      <div class="badge-chip earned">🎯 Hotspot Hunter</div>
+      <div class="badge-chip earned">🌿 Eco Warrior</div>
+      <div class="badge-chip">📸 Foto Expert</div>
+      <div class="badge-chip">🥃 Glas Profi</div>
+    </div>
+
+    <!-- Nearby Hotspots -->
+    <div class="section-title">Hotspots in der Nähe</div>
+
+    <div class="hotspot-alert" onclick="showToast('+30 Pts für Hilfe!')">
+      <div class="hotspot-dot"></div>
+      <div class="hotspot-info">
+        <div class="hotspot-title">Park Hauptplatz</div>
+        <div class="hotspot-sub">200m entfernt · Plastik, Glas, Organik</div>
+      </div>
+      <div class="hotspot-pts">+30 Pts</div>
+    </div>
+
+    <div class="hotspot-alert" onclick="showToast('+20 Pts für Hilfe!')">
+      <div class="hotspot-dot yellow"></div>
+      <div class="hotspot-info">
+        <div class="hotspot-title">Grünanlagen Süd</div>
+        <div class="hotspot-sub">550m entfernt · Papier, Karton</div>
+      </div>
+      <div class="hotspot-pts">+20 Pts</div>
+    </div>
+
+    <!-- How to play -->
+    <div class="section-title">So funktioniert's</div>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-icon">📸</div>
+        <div class="step-label">Müll Foto</div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-icon">⭐</div>
+        <div class="step-label">Punkte +15</div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-icon">🏆</div>
+        <div class="step-label">Level Up!</div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Bottom Navigation -->
+  <nav class="bottom-nav">
+    <a href="index.html" class="nav-item active">
+      <div class="nav-item-icon">🏠</div>
+      Home
+    </a>
+    <a href="app.html" class="nav-item">
+      <div class="nav-item-icon">🗺️</div>
+      Karte
+    </a>
+    <div class="nav-fab" onclick="window.location.href='app.html'">🗑️</div>
+    <a href="minigame.html" class="nav-item">
+      <div class="nav-item-icon">🎮</div>
+      Spiele
+    </a>
+    <a href="dashboard.html" class="nav-item">
+      <div class="nav-item-icon">📊</div>
+      Stats
+    </a>
+  </nav>
+
+  <div id="toast-container"></div>
+
+  <script src="avatar-renderer.js"></script>
+  <script>
+    // Install Prompt
+    let deferredPrompt;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      document.getElementById('install-prompt').classList.remove('hidden');
+    });
+    document.getElementById('install-action').addEventListener('click', async () => {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        deferredPrompt = null;
+        document.getElementById('install-prompt').classList.add('hidden');
+      }
+    });
+
+    // Share
+    document.getElementById('share-btn').addEventListener('click', async () => {
+      if (navigator.share) {
+        navigator.share({ title: 'Trash Bash', text: 'Müll sammeln & Punkte gewinnen!', url: window.location.href });
+      } else {
+        showToast('📤 ' + window.location.href);
+      }
+    });
+
+    // SW
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js').catch(() => {});
+    }
+
+    window.addEventListener('load', () => {
+      // ── Avatar ──
+      const avatarEl = document.getElementById('player-avatar');
+      if (avatarEl && window.renderAvatarSVG && window.AvatarStore) {
+        avatarEl.innerHTML = window.renderAvatarSVG(window.AvatarStore.getEquipped());
+      }
+
+      // ── Profile data ──
+      const profile = JSON.parse(localStorage.getItem('tb_profile') || '{}');
+      const name    = localStorage.getItem('tb_username') || profile.name || 'DemoUser';
+      const team    = localStorage.getItem('tb_team')    || profile.team || '';
+      const TEAMS   = { eco:'🌿 Team Eco Warriors', urban:'🏙️ Team Urban Cleanup', ocean:'🌊 Team Ocean Guard', forest:'🌲 Team Forest Keepers' };
+      const teamLabel = TEAMS[team] || TEAMS[profile.team] || '🌿 Team Eco Warriors';
+
+      document.getElementById('player-name').textContent = name;
+      document.getElementById('player-team').textContent = teamLabel;
+
+      // ── Coins / XP / Level ──
+      const coins = window.AvatarStore ? window.AvatarStore.getCoins() : parseInt(localStorage.getItem('tb_coins') || '0');
+      document.getElementById('player-coins').textContent = '🪙 ' + coins;
+
+      // Level: every 500 coins = 1 level
+      const XP_PER_LEVEL = 500;
+      const level    = Math.max(1, Math.floor(coins / XP_PER_LEVEL) + 1);
+      const xpInLevel = coins % XP_PER_LEVEL;
+      const xpPct    = Math.round(xpInLevel / XP_PER_LEVEL * 100);
+      const xpNext   = level * XP_PER_LEVEL;
+
+      document.getElementById('player-level-badge').textContent = 'LVL ' + level;
+      document.getElementById('xp-current').textContent = 'XP: ' + coins;
+      document.getElementById('xp-next').textContent    = 'Nächstes Level: ' + xpNext;
+
+      // Animate XP bar
+      const fill = document.getElementById('xp-fill-bar');
+      fill.style.width = '0%';
+      setTimeout(() => fill.style.width = xpPct + '%', 200);
+
+      // ── Stats ──
+      // Points = coins * 2 (approximation until real backend)
+      const points  = parseInt(localStorage.getItem('tb_points') || String(coins * 2));
+      // kg = points / 10 (rough estimate)
+      const kg      = (points / 10).toFixed(1);
+      // Ranking: stored or calculated from hotspot reports
+      const reports = JSON.parse(localStorage.getItem('tb_hotspots') || '[]').length;
+      const rank    = reports >= 10 ? '#1' : reports >= 5 ? '#3' : reports >= 2 ? '#7' : '#–';
+
+      document.getElementById('stat-punkte').textContent = points;
+      document.getElementById('stat-kg').textContent     = kg + 'kg';
+      document.getElementById('stat-rank').textContent   = rank;
+
+      // ── Next Pickup Banner ──
+      const plz = localStorage.getItem('tb_plz');
+      if (plz) {
+        const plan = generatePickupPlan(plz);
+        const next = getNextPickupFromPlan(plan);
+        if (next) {
+          const banner = document.getElementById('next-pickup-banner');
+          const urgency = next.daysAway === 0 ? 'urgent' : next.daysAway <= 2 ? 'soon' : 'normal';
+          const daysText = next.daysAway === 0 ? 'Heute!' : next.daysAway === 1 ? 'Morgen' : 'In ' + next.daysAway + ' Tagen';
+          const TNAMES = { gelb:'Gelber Sack', bio:'Biotonne', papier:'Papiertonne', rest:'Restmüll', glas:'Glas' };
+          const TICONS = { gelb:'🟡', bio:'🟤', papier:'🔵', rest:'⚫', glas:'🟢' };
+          banner.style.display = 'block';
+          banner.innerHTML = '<a href="trashpeche.html" class="pickup-banner' + (next.daysAway === 0 ? ' is-urgent' : '') + '">' +
+            '<div class="pickup-banner-icon ' + urgency + '">' + TICONS[next.type] + '</div>' +
+            '<div class="pickup-banner-info">' +
+              '<div class="pickup-banner-label">Nächste Abholung</div>' +
+              '<div class="pickup-banner-title">' + TNAMES[next.type] + '</div>' +
+            '</div>' +
+            '<div class="pickup-banner-when ' + urgency + '">' + daysText + '</div>' +
+          '</a>';
+        }
+      }
+    });
+
+    // ── Pickup Plan Logic (mirrored from trashpeche.html) ──
+    function generatePickupPlan(plz) {
+      const d = plz.split('').map(Number);
+      const seed = d.reduce((a, b) => a + b, 0);
+      const days = [1, 2, 3, 4, 5];
+      return {
+        gelb:   { rhythm: 'biweekly', day: days[(seed + 0) % 5], startWeek: seed % 2 === 0 ? 'even' : 'odd' },
+        bio:    { rhythm: 'weekly',   day: days[(seed + 1) % 5] },
+        papier: { rhythm: 'biweekly', day: days[(seed + 2) % 5], startWeek: seed % 2 === 0 ? 'odd' : 'even' },
+        rest:   { rhythm: 'biweekly', day: days[(seed + 3) % 5], startWeek: seed % 2 === 0 ? 'even' : 'odd' },
+        glas:   { rhythm: 'monthly',  day: days[(seed + 4) % 5] }
+      };
+    }
+    function getNextPickupFromPlan(plan) {
+      const today = new Date(); today.setHours(0,0,0,0);
+      for (let i = 0; i <= 30; i++) {
+        const d = new Date(today); d.setDate(d.getDate() + i);
+        const dow = d.getDay();
+        const startOfYear = new Date(d.getFullYear(), 0, 1);
+        const weekNum = Math.ceil(((d - startOfYear) / 86400000 + startOfYear.getDay()) / 7);
+        for (const [type, sched] of Object.entries(plan)) {
+          if (dow !== sched.day) continue;
+          if (sched.rhythm === 'weekly') return { type, daysAway: i };
+          if (sched.rhythm === 'biweekly') {
+            const isEven = weekNum % 2 === 0;
+            if ((sched.startWeek === 'even' && isEven) || (sched.startWeek === 'odd' && !isEven)) return { type, daysAway: i };
+          }
+          if (sched.rhythm === 'monthly') {
+            const fom = new Date(d.getFullYear(), d.getMonth(), 1);
+            let fo = sched.day - fom.getDay();
+            if (fo <= 0) fo += 7;
+            if (d.getDate() === fo) return { type, daysAway: i };
+          }
+        }
+      }
+      return null;
+    }
+
+    function showToast(msg) {
+      const old = document.querySelector('.toast');
+      if (old) old.remove();
+      const t = document.createElement('div');
+      t.className = 'toast';
+      t.textContent = msg;
+      document.body.appendChild(t);
+      setTimeout(() => { t.style.opacity = '0'; t.style.transition = 'opacity 0.3s'; setTimeout(() => t.remove(), 300); }, 2500);
+    }
+  </script>
+</body>
+</html>

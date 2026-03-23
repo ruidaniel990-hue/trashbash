@@ -1,0 +1,925 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+  <meta name="theme-color" content="#0a0e1a">
+  <title>Trash Bash – Live Session</title>
+
+  <link rel="stylesheet" href="leaflet.css"/>
+  <script src="leaflet.js"></script>
+  <script src="avatar-renderer.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg:          #0a0e1a;
+      --surface:     #111827;
+      --surface2:    #1a2332;
+      --border:      #1e3a5f;
+      --primary:     #0075be;
+      --primary-glow:rgba(0,117,190,0.4);
+      --cyan:        #00d4ff;
+      --cyan-glow:   rgba(0,212,255,0.3);
+      --yellow:      #ffcc00;
+      --yellow-glow: rgba(255,204,0,0.35);
+      --green:       #00cc66;
+      --green-glow:  rgba(0,204,102,0.3);
+      --red:         #ff4444;
+      --text:        #e8f4fd;
+      --muted:       #6b8ca4;
+      --bottom-h:    88px;
+    }
+
+    html, body { height: 100%; overflow: hidden; font-family: 'Nunito', -apple-system, sans-serif; background: var(--bg); color: var(--text); }
+
+    /* ── MAP ── */
+    #map { position: absolute; inset: 0; z-index: 0; }
+
+    .leaflet-control-attribution { background: rgba(10,14,26,0.8) !important; color: #6b8ca4 !important; font-size: 0.6rem !important; backdrop-filter: blur(8px); }
+    .leaflet-control-attribution a { color: var(--cyan) !important; }
+    .leaflet-control-zoom { border: 1px solid var(--border) !important; border-radius: 12px !important; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,0.4) !important; display: none !important; }
+
+    /* ── PLAYER MARKER ── */
+    .player-avatar-marker {
+      width: 56px; height: 72px;
+      display: flex; align-items: flex-end; justify-content: center;
+      position: relative;
+      filter: drop-shadow(0 4px 8px rgba(0,0,0,0.5));
+    }
+    .player-avatar-marker svg { width: 52px; height: 68px; }
+
+    /* Walking bob animation */
+    @keyframes playerWalk {
+      0%, 100% { transform: translateY(0) rotate(0deg); }
+      25% { transform: translateY(-3px) rotate(-2deg); }
+      50% { transform: translateY(0) rotate(0deg); }
+      75% { transform: translateY(-3px) rotate(2deg); }
+    }
+    @keyframes playerIdle {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-3px); }
+    }
+    .player-avatar-marker.walking svg {
+      animation: playerWalk 0.6s ease-in-out infinite;
+    }
+    .player-avatar-marker.idle svg {
+      animation: playerIdle 2.5s ease-in-out infinite;
+    }
+
+    /* Ground shadow under avatar */
+    .player-ground-shadow {
+      position: absolute;
+      bottom: -2px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 36px; height: 8px;
+      background: radial-gradient(ellipse, rgba(0,0,0,0.4) 0%, transparent 70%);
+      border-radius: 50%;
+    }
+
+    /* Direction indicator */
+    .player-direction {
+      position: absolute;
+      bottom: -8px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 0; height: 0;
+      border-left: 6px solid transparent;
+      border-right: 6px solid transparent;
+      border-top: 8px solid rgba(0,212,255,0.7);
+      filter: drop-shadow(0 0 4px rgba(0,212,255,0.5));
+    }
+
+    /* Pokémon Go–style proximity ring on the map */
+    .player-ring-outer { border: 2px solid rgba(200,160,255,0.35); border-radius: 50%; animation: ring-pulse 3s ease-in-out infinite; }
+    .player-ring-inner { border: 1px solid rgba(255,255,255,0.2); border-radius: 50%; }
+
+    @keyframes ring-pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(1.04)} }
+
+    /* ── HOTSPOT MARKERS ── */
+    .hotspot-icon {
+      width: 40px; height: 40px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.1rem; border: 2px solid rgba(255,255,255,0.25);
+      animation: bounce-marker 2s ease-in-out infinite;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+    }
+    .hotspot-icon.high   { background: rgba(255,68,68,0.9);  box-shadow: 0 0 16px rgba(255,68,68,0.7); }
+    .hotspot-icon.medium { background: rgba(255,172,0,0.9);  box-shadow: 0 0 16px rgba(255,172,0,0.6); }
+    .hotspot-icon.low    { background: rgba(0,117,190,0.9);  box-shadow: 0 0 16px rgba(0,117,190,0.5); }
+    @keyframes bounce-marker { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-4px)} }
+
+    /* ── DISPOSAL STATION MARKERS ── */
+    .disposal-icon {
+      width: 36px; height: 36px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1rem; border: 2px solid rgba(255,255,255,0.2);
+      box-shadow: 0 3px 12px rgba(0,0,0,0.5);
+    }
+    .disposal-icon.muelleimer  { background: rgba(0,204,102,0.85); box-shadow: 0 0 12px rgba(0,204,102,0.5); }
+    .disposal-icon.glas        { background: rgba(0,180,80,0.85);  box-shadow: 0 0 12px rgba(0,180,80,0.5); }
+    .disposal-icon.wertstoff   { background: rgba(0,117,190,0.85); box-shadow: 0 0 12px rgba(0,117,190,0.5); }
+    .disposal-icon.kleider     { background: rgba(139,92,246,0.85); box-shadow: 0 0 12px rgba(139,92,246,0.5); }
+    .disposal-icon.elektro     { background: rgba(255,172,0,0.85); box-shadow: 0 0 12px rgba(255,172,0,0.5); }
+
+    .popup-category { display: inline-block; padding: 2px 8px; border-radius: 8px; font-size: 0.65rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+    .popup-category.muelleimer  { background: rgba(0,204,102,0.2); color: #00cc66; }
+    .popup-category.glas        { background: rgba(0,180,80,0.2);  color: #00b450; }
+    .popup-category.wertstoff   { background: rgba(0,117,190,0.2); color: #0075be; }
+    .popup-category.kleider     { background: rgba(139,92,246,0.2); color: #8b5cf6; }
+    .popup-category.elektro     { background: rgba(255,172,0,0.2); color: #ffac00; }
+
+    .leaflet-popup-content-wrapper { background: rgba(17,24,39,0.97) !important; border: 1px solid var(--border) !important; border-radius: 16px !important; backdrop-filter: blur(16px); box-shadow: 0 8px 32px rgba(0,0,0,0.5) !important; color: var(--text) !important; }
+    .leaflet-popup-tip { background: rgba(17,24,39,0.97) !important; }
+    .leaflet-popup-close-button { color: var(--muted) !important; font-size: 1.2rem !important; }
+    .popup-title { font-size: 0.95rem; font-weight: 900; margin-bottom: 4px; }
+    .popup-sub   { font-size: 0.75rem; color: var(--muted); margin-bottom: 10px; }
+    .popup-btn { width: 100%; background: linear-gradient(135deg, var(--primary), var(--cyan)); border: none; border-radius: 10px; color: white; padding: 8px; font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 0.8rem; cursor: pointer; }
+
+    /* ── TOP BAR ── */
+    .top-bar {
+      position: absolute; top: 0; left: 0; right: 0; z-index: 500;
+      background: linear-gradient(180deg, rgba(10,14,26,0.9) 0%, transparent 100%);
+      padding: max(12px, env(safe-area-inset-top)) 14px 24px;
+      display: flex; align-items: center; gap: 10px;
+      pointer-events: none;
+    }
+    .top-bar > * { pointer-events: all; }
+
+    .back-btn {
+      width: 36px; height: 36px;
+      background: rgba(26,35,50,0.85); border: 1px solid var(--border);
+      border-radius: 50%; display: flex; align-items: center; justify-content: center;
+      cursor: pointer; color: var(--text); font-size: 1rem;
+      text-decoration: none; transition: all 0.2s; flex-shrink: 0;
+      backdrop-filter: blur(10px);
+    }
+    .back-btn:hover { border-color: var(--cyan); }
+
+    .top-title { flex: 1; font-size: 0.95rem; font-weight: 900; color: var(--cyan); text-shadow: 0 0 12px var(--cyan-glow); }
+
+    .gps-indicator { display: flex; align-items: center; gap: 5px; background: rgba(17,24,39,0.88); border: 1px solid var(--border); border-radius: 20px; padding: 4px 10px; font-size: 0.7rem; font-weight: 800; backdrop-filter: blur(10px); }
+    .gps-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
+    .gps-dot.active { background: var(--green); box-shadow: 0 0 6px var(--green); animation: pulse-dot 1.5s infinite; }
+    .gps-dot.searching { background: var(--yellow); animation: pulse-dot 0.8s infinite; }
+    @keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+    .top-time { font-size: 0.82rem; font-weight: 800; color: var(--muted); }
+
+    /* ── RIGHT SIDE FABS ── */
+    .fab-stack {
+      position: absolute; right: 14px;
+      bottom: calc(var(--bottom-h) + 100px);
+      display: flex; flex-direction: column; gap: 10px; z-index: 400;
+    }
+    .fab {
+      width: 48px; height: 48px; border-radius: 50%; border: none;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.3rem; cursor: pointer;
+      backdrop-filter: blur(10px); transition: all 0.2s;
+    }
+    .fab:hover { transform: scale(1.1); }
+    .fab:active { transform: scale(0.92); }
+    .fab-locate { background: rgba(17,24,39,0.9); border: 1px solid var(--border); box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
+    .fab-cam    { background: rgba(0,117,190,0.85); box-shadow: 0 4px 16px var(--primary-glow); }
+    .fab-hot    { background: rgba(200,60,0,0.85); box-shadow: 0 4px 16px rgba(255,68,68,0.35); }
+
+    /* ── POKÉMON GO BOTTOM BAR ── */
+    .pogo-bottom {
+      position: absolute; bottom: 0; left: 0; right: 0; z-index: 500;
+      background: linear-gradient(0deg, rgba(8,12,22,0.99) 70%, transparent 100%);
+      padding: 0 0 max(14px, env(safe-area-inset-bottom)) 0;
+      height: calc(var(--bottom-h) + max(14px, env(safe-area-inset-bottom)));
+      display: flex; align-items: flex-end;
+      pointer-events: none;
+    }
+    .pogo-bottom > * { pointer-events: all; }
+
+    .pogo-inner {
+      width: 100%; display: flex; align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      gap: 0;
+    }
+
+    /* ── LEFT: Player Card ── */
+    .player-card {
+      display: flex; align-items: center; gap: 10px;
+      background: rgba(17,24,39,0.85); border: 1px solid var(--border);
+      border-radius: 20px; padding: 8px 12px 8px 8px;
+      backdrop-filter: blur(16px);
+      cursor: pointer; flex-shrink: 0;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+      transition: all 0.2s;
+    }
+    .player-card:hover { border-color: var(--cyan); }
+    .player-card:active { transform: scale(0.97); }
+
+    .player-portrait {
+      width: 44px; height: 44px; border-radius: 50%;
+      background: rgba(0,212,255,0.1); border: 2px solid rgba(0,212,255,0.5);
+      overflow: hidden; display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .player-portrait svg { width: 42px; height: 42px; }
+
+    .player-info { min-width: 0; }
+    .player-name { font-size: 0.8rem; font-weight: 900; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 80px; }
+    .player-level { font-size: 0.65rem; font-weight: 800; color: var(--cyan); }
+    .player-xp-bar { width: 80px; height: 3px; background: var(--surface2); border-radius: 2px; margin-top: 3px; }
+    .player-xp-fill { height: 100%; background: var(--cyan); border-radius: 2px; width: 40%; }
+
+    /* ── CENTER: Main Action Button (Poké Ball style) ── */
+    .main-fab-wrap { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; position: relative; }
+
+    .main-fab {
+      width: 72px; height: 72px; border-radius: 50%; border: none;
+      background: radial-gradient(circle at 40% 35%, #1af0aa, #00cc66 45%, #008844);
+      box-shadow:
+        0 0 0 4px rgba(0,204,102,0.25),
+        0 0 0 8px rgba(0,204,102,0.1),
+        0 -4px 0 rgba(255,255,255,0.12) inset,
+        0 8px 24px rgba(0,204,102,0.5),
+        0 4px 8px rgba(0,0,0,0.6);
+      cursor: pointer; position: relative; transition: all 0.15s;
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 6px;
+    }
+    .main-fab:hover { transform: scale(1.06); box-shadow: 0 0 0 4px rgba(0,204,102,0.4), 0 0 0 10px rgba(0,204,102,0.15), 0 12px 32px rgba(0,204,102,0.6), 0 4px 8px rgba(0,0,0,0.6); }
+    .main-fab:active { transform: scale(0.94); }
+
+    /* Poké Ball divider line */
+    .main-fab::before {
+      content: ''; position: absolute;
+      left: 0; right: 0; top: 50%; transform: translateY(-50%);
+      height: 2px; background: rgba(255,255,255,0.2);
+    }
+    /* Center button circle */
+    .main-fab::after {
+      content: ''; position: absolute;
+      width: 22px; height: 22px; border-radius: 50%;
+      background: radial-gradient(circle at 40% 35%, #e8f4fd, #a0c4d8);
+      border: 3px solid rgba(255,255,255,0.3);
+      box-shadow: 0 0 8px rgba(0,212,255,0.5);
+    }
+
+    .main-fab-icon {
+      font-size: 1.6rem; position: relative; z-index: 1;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+    }
+
+    .main-fab-label { font-size: 0.65rem; font-weight: 800; color: var(--muted); text-align: center; letter-spacing: 0.5px; text-transform: uppercase; }
+
+    /* ── RIGHT: Live Stats ── */
+    .live-stats {
+      background: rgba(17,24,39,0.85); border: 1px solid var(--border);
+      border-radius: 20px; padding: 10px 14px;
+      backdrop-filter: blur(16px); flex-shrink: 0;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+      display: flex; flex-direction: column; gap: 4px;
+      min-width: 80px;
+    }
+    .live-stat { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+    .live-stat-label { font-size: 0.62rem; color: var(--muted); font-weight: 700; }
+    .live-stat-val { font-size: 0.82rem; font-weight: 900; color: var(--cyan); }
+    .live-stat-val.yellow { color: var(--yellow); text-shadow: 0 0 8px var(--yellow-glow); }
+    .live-stat-val.green  { color: var(--green);  text-shadow: 0 0 8px var(--green-glow); }
+    .live-stat-sep { height: 1px; background: var(--border); }
+    .live-stat-time { font-size: 0.7rem; font-weight: 900; color: var(--muted); text-align: center; padding-top: 2px; }
+
+    /* ── TRASH DRAWER ── */
+    .trash-drawer {
+      position: fixed; bottom: 0; left: 0; right: 0; z-index: 600;
+      background: rgba(10,14,26,0.99);
+      border-top: 1px solid var(--border);
+      border-radius: 28px 28px 0 0;
+      padding: 0 16px max(24px, env(safe-area-inset-bottom));
+      backdrop-filter: blur(24px);
+      transform: translateY(100%);
+      transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 -8px 40px rgba(0,0,0,0.6);
+    }
+    .trash-drawer.open { transform: translateY(0); }
+
+    .drawer-handle {
+      width: 44px; height: 5px; background: var(--border);
+      border-radius: 3px; margin: 14px auto 18px;
+    }
+
+    .drawer-title { font-size: 0.9rem; font-weight: 900; color: var(--text); margin-bottom: 4px; }
+    .drawer-sub   { font-size: 0.75rem; color: var(--muted); font-weight: 700; margin-bottom: 18px; }
+
+    .trash-grid {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px;
+    }
+    .trash-btn {
+      background: var(--surface2); border: 2px solid var(--border);
+      border-radius: 16px; padding: 12px 6px;
+      cursor: pointer; text-align: center; transition: all 0.2s;
+    }
+    .trash-btn:hover  { border-color: var(--primary); }
+    .trash-btn.active {
+      border-color: var(--green); background: rgba(0,204,102,0.12);
+      box-shadow: 0 0 14px var(--green-glow);
+    }
+    .trash-emoji { font-size: 1.4rem; display: block; }
+    .trash-label { font-size: 0.62rem; color: var(--muted); font-weight: 700; margin-top: 4px; }
+    .trash-pts   { font-size: 0.6rem; color: var(--green); font-weight: 900; }
+
+    .drawer-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+    .btn {
+      border: none; border-radius: 16px;
+      font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 0.88rem;
+      padding: 14px; cursor: pointer; transition: all 0.2s;
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+    }
+    .btn:active { transform: scale(0.96); }
+    .btn-confirm { background: linear-gradient(135deg, var(--green), #00ee77); color: #001a0a; box-shadow: 0 4px 16px var(--green-glow); grid-column: 1 / -1; }
+    .btn-cancel  { background: var(--surface2); border: 1px solid var(--border); color: var(--muted); }
+    .btn-danger  { background: linear-gradient(135deg, #8b0000, var(--red)); color: white; box-shadow: 0 4px 14px rgba(255,68,68,0.3); }
+
+    /* ── MODALS ── */
+    .modal-overlay {
+      position: fixed; inset: 0; z-index: 1000;
+      background: rgba(0,0,0,0.75); backdrop-filter: blur(10px);
+      display: flex; align-items: center; justify-content: center; padding: 20px;
+      opacity: 0; pointer-events: none; transition: opacity 0.25s;
+    }
+    .modal-overlay.open { opacity: 1; pointer-events: all; }
+    .modal {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 28px; padding: 28px 22px;
+      width: 100%; max-width: 360px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+      transform: scale(0.9) translateY(20px); transition: transform 0.28s;
+    }
+    .modal-overlay.open .modal { transform: scale(1) translateY(0); }
+    .modal-title { font-size: 1.1rem; font-weight: 900; margin-bottom: 4px; }
+    .modal-sub   { font-size: 0.8rem; color: var(--muted); margin-bottom: 18px; font-weight: 600; }
+    .modal input[type="file"] {
+      width: 100%; background: var(--surface2); border: 1px dashed var(--border);
+      border-radius: 12px; padding: 16px; color: var(--text); font-size: 0.85rem;
+      margin-bottom: 16px; cursor: pointer;
+    }
+    .modal-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .btn-cancel-sm { background: var(--surface2); color: var(--muted); border: 1px solid var(--border); border-radius: 14px; font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 0.85rem; padding: 12px; cursor: pointer; }
+    .btn-primary { background: linear-gradient(135deg, var(--primary), var(--cyan)); color: white; box-shadow: 0 4px 14px var(--primary-glow); border-radius: 14px; font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 0.85rem; padding: 12px; cursor: pointer; border: none; }
+    .btn-danger-sm { background: linear-gradient(135deg, #8b0000, var(--red)); color: white; border: none; border-radius: 14px; font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 0.85rem; padding: 12px; cursor: pointer; box-shadow: 0 4px 14px rgba(255,68,68,0.3); }
+    .confirm-icon { font-size: 3rem; text-align: center; margin-bottom: 12px; }
+    .confirm-msg  { font-size: 0.9rem; color: var(--muted); text-align: center; margin-bottom: 22px; line-height: 1.5; }
+
+    /* Severity grid in report modal */
+    .sev-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-bottom: 16px; }
+
+    /* ── RESULT SCREEN ── */
+    .result-overlay {
+      position: fixed; inset: 0; z-index: 2000;
+      background: rgba(0,0,0,0.93);
+      display: none; align-items: center; justify-content: center; padding: 24px;
+    }
+    .result-card {
+      background: var(--surface); border: 1px solid rgba(0,212,255,0.35);
+      border-radius: 32px; padding: 36px 28px;
+      width: 100%; max-width: 360px; text-align: center;
+      box-shadow: 0 0 60px var(--primary-glow);
+    }
+    .result-icon  { font-size: 3.5rem; margin-bottom: 12px; }
+    .result-title { font-size: 1.6rem; font-weight: 900; color: var(--cyan); margin-bottom: 6px; }
+    .result-sub   { color: var(--muted); font-size: 0.85rem; margin-bottom: 28px; font-weight: 700; }
+    .result-stats { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; margin-bottom: 28px; }
+    .result-stat-val   { font-size: 1.6rem; font-weight: 900; color: var(--yellow); }
+    .result-stat-label { font-size: 0.68rem; color: var(--muted); font-weight: 800; text-transform: uppercase; }
+    .btn-home { width: 100%; background: linear-gradient(135deg, var(--primary), var(--cyan)); color: white; border: none; border-radius: 18px; padding: 18px; font-size: 1rem; font-weight: 900; cursor: pointer; font-family: 'Nunito', sans-serif; box-shadow: 0 4px 24px var(--primary-glow); transition: transform 0.15s; }
+    .btn-home:active { transform: scale(0.97); }
+
+    /* ── TOAST ── */
+    .toast {
+      position: fixed; top: 72px; left: 50%; transform: translateX(-50%);
+      background: rgba(0,204,102,0.15); backdrop-filter: blur(14px);
+      border: 1px solid rgba(0,204,102,0.4); color: var(--green);
+      padding: 12px 24px; border-radius: 50px;
+      font-size: 0.88rem; font-weight: 800; white-space: nowrap; z-index: 3000;
+      animation: toastIn 0.3s ease-out;
+      box-shadow: 0 0 20px var(--green-glow);
+    }
+    @keyframes toastIn { from{opacity:0;transform:translateX(-50%) translateY(-10px)} to{opacity:1;transform:translateX(-50%) translateY(0)} }
+
+    /* drawer backdrop */
+    .drawer-backdrop {
+      position: fixed; inset: 0; z-index: 590;
+      background: rgba(0,0,0,0);
+      pointer-events: none; transition: background 0.3s;
+    }
+    .drawer-backdrop.open { background: rgba(0,0,0,0.5); pointer-events: all; }
+  </style>
+</head>
+<body>
+
+  <!-- MAP -->
+  <div id="map"></div>
+
+  <!-- TOP BAR -->
+  <div class="top-bar">
+    <a href="index.html" class="back-btn">←</a>
+    <div class="top-title">♻️ Live Session</div>
+    <div class="gps-indicator" id="gps-status">
+      <div class="gps-dot searching" id="gps-dot"></div>
+      <span id="gps-label">GPS sucht…</span>
+    </div>
+    <div class="top-time" id="live-time">--:--</div>
+  </div>
+
+  <!-- RIGHT FABs -->
+  <div class="fab-stack">
+    <button class="fab fab-locate" onclick="locateMe()" title="Meine Position">🎯</button>
+    <button class="fab fab-cam" onclick="openPhotoModal()" title="Foto aufnehmen">📷</button>
+    <button class="fab fab-hot" onclick="openReportModal()" title="Hotspot melden">🔥</button>
+  </div>
+
+  <!-- ── POKÉMON GO BOTTOM BAR ── -->
+  <div class="pogo-bottom">
+    <div class="pogo-inner">
+
+      <!-- Left: Player Card -->
+      <div class="player-card" onclick="window.location.href='index.html'">
+        <div class="player-portrait" id="bottom-portrait">
+          <span style="font-size:1.4rem;">🧑</span>
+        </div>
+        <div class="player-info">
+          <div class="player-name" id="player-name-label">Spieler</div>
+          <div class="player-level">⭐ Level 1</div>
+          <div class="player-xp-bar"><div class="player-xp-fill" id="xp-fill"></div></div>
+        </div>
+      </div>
+
+      <!-- Center: Main FAB (Poké Ball style) -->
+      <div class="main-fab-wrap">
+        <button class="main-fab" onclick="openTrashDrawer()" id="main-fab-btn">
+          <span class="main-fab-icon">♻️</span>
+        </button>
+        <div class="main-fab-label">Müll loggen</div>
+      </div>
+
+      <!-- Right: Live Stats -->
+      <div class="live-stats">
+        <div class="live-stat">
+          <span class="live-stat-label">📸</span>
+          <span class="live-stat-val" id="stat-photos">0</span>
+        </div>
+        <div class="live-stat-sep"></div>
+        <div class="live-stat">
+          <span class="live-stat-label">⭐</span>
+          <span class="live-stat-val yellow" id="stat-pts">0</span>
+        </div>
+        <div class="live-stat-sep"></div>
+        <div class="live-stat">
+          <span class="live-stat-label">km</span>
+          <span class="live-stat-val green" id="stat-dist">0.00</span>
+        </div>
+        <div class="live-stat-time" id="stat-time">0:00</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- DRAWER BACKDROP -->
+  <div class="drawer-backdrop" id="drawer-backdrop" onclick="closeTrashDrawer()"></div>
+
+  <!-- TRASH DRAWER (slides up from bottom) -->
+  <div class="trash-drawer" id="trash-drawer">
+    <div class="drawer-handle"></div>
+    <div class="drawer-title">🗑️ Müll-Typ wählen</div>
+    <div class="drawer-sub">Was hast du gesammelt?</div>
+
+    <div class="trash-grid">
+      <button class="trash-btn" onclick="selectTrash(this,'plastic',15)">
+        <span class="trash-emoji">🛍️</span><span class="trash-label">Plastik</span><span class="trash-pts">+15</span>
+      </button>
+      <button class="trash-btn" onclick="selectTrash(this,'glass',12)">
+        <span class="trash-emoji">🥃</span><span class="trash-label">Glas</span><span class="trash-pts">+12</span>
+      </button>
+      <button class="trash-btn" onclick="selectTrash(this,'bulky',25)">
+        <span class="trash-emoji">🪑</span><span class="trash-label">Sperrmüll</span><span class="trash-pts">+25</span>
+      </button>
+      <button class="trash-btn" onclick="selectTrash(this,'organic',10)">
+        <span class="trash-emoji">🌿</span><span class="trash-label">Organik</span><span class="trash-pts">+10</span>
+      </button>
+    </div>
+
+    <div class="drawer-actions">
+      <button class="btn btn-confirm" id="drawer-confirm-btn" onclick="confirmTrashLog()">
+        📸 Foto + Bestätigen
+      </button>
+    </div>
+    <div class="drawer-actions">
+      <button class="btn btn-cancel" onclick="closeTrashDrawer()">Abbrechen</button>
+      <button class="btn btn-danger" onclick="openEndConfirm(); closeTrashDrawer()">🏁 Beenden</button>
+    </div>
+  </div>
+
+  <!-- PHOTO MODAL -->
+  <div class="modal-overlay" id="photo-modal">
+    <div class="modal">
+      <div class="modal-title">📸 Foto aufnehmen</div>
+      <div class="modal-sub" id="photo-type-hint">Kein Typ gewählt</div>
+      <input type="file" accept="image/*" capture="environment" id="photo-file">
+      <div class="modal-btns">
+        <button class="btn-cancel-sm" onclick="closeModal('photo-modal')">Abbrechen</button>
+        <button class="btn-primary" onclick="submitPhoto()">✅ Hochladen</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- REPORT MODAL -->
+  <div class="modal-overlay" id="report-modal">
+    <div class="modal">
+      <div class="modal-title">📍 Hotspot melden</div>
+      <div class="modal-sub">Schweregrad des Müllplatzes</div>
+      <div class="sev-grid">
+        <button class="trash-btn" id="sev-high" onclick="selectSeverity('high',30)">
+          <span class="trash-emoji">🔴</span><span class="trash-label">Hoch</span><span class="trash-pts">+30</span>
+        </button>
+        <button class="trash-btn" id="sev-medium" onclick="selectSeverity('medium',20)">
+          <span class="trash-emoji">🟡</span><span class="trash-label">Mittel</span><span class="trash-pts">+20</span>
+        </button>
+        <button class="trash-btn" id="sev-low" onclick="selectSeverity('low',10)">
+          <span class="trash-emoji">🟢</span><span class="trash-label">Gering</span><span class="trash-pts">+10</span>
+        </button>
+      </div>
+      <div class="modal-btns">
+        <button class="btn-cancel-sm" onclick="closeModal('report-modal')">Abbrechen</button>
+        <button class="btn-primary" onclick="submitReport()">📍 Melden</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- END CONFIRM -->
+  <div class="modal-overlay" id="end-modal">
+    <div class="modal">
+      <div class="confirm-icon">🏁</div>
+      <div class="modal-title" style="text-align:center">Session beenden?</div>
+      <div class="confirm-msg">Deine Punkte und Fotos werden gespeichert.</div>
+      <div class="modal-btns">
+        <button class="btn-cancel-sm" onclick="closeModal('end-modal')">Weiter sammeln</button>
+        <button class="btn-danger-sm" onclick="endSession()">Beenden</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RESULT SCREEN -->
+  <div class="result-overlay" id="result-screen">
+    <div class="result-card">
+      <div class="result-icon">🎉</div>
+      <div class="result-title">Gut gemacht!</div>
+      <div class="result-sub" id="result-sub">Session beendet</div>
+      <div class="result-stats">
+        <div><div class="result-stat-val" id="res-photos">0</div><div class="result-stat-label">Fotos</div></div>
+        <div><div class="result-stat-val" id="res-pts">0</div><div class="result-stat-label">Punkte</div></div>
+        <div><div class="result-stat-val" id="res-dist">0</div><div class="result-stat-label">km</div></div>
+      </div>
+      <button class="btn-home" onclick="window.location.href='index.html'">🏠 Zur Startseite</button>
+    </div>
+  </div>
+
+  <script>
+    // ── State ──
+    let sessionStart = Date.now();
+    let photos = 0, points = 0;
+    let selectedTrash = null, selectedPts = 0;
+    let selectedSeverity = null, selectedSevPts = 0;
+    let watchId = null;
+    let totalDistance = 0;
+    let lastLatLng = null;
+
+    // ── Leaflet Map ──
+    const map = L.map('map', { zoomControl: false, attributionControl: true })
+                 .setView([51.1657, 10.4515], 15);
+
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/">CARTO</a>',
+      subdomains: 'abcd', maxZoom: 19,
+    }).addTo(map);
+
+    // Move attribution to not overlap bottom bar
+    map.attributionControl.setPosition('bottomleft');
+
+    // ── Player marker with avatar SVG ──
+    let playerMarker = null;
+    let accuracyCircle = null;
+    let rangeCircle = null;  // fixed ~80m "collection range" ring
+
+    let isWalking = false;
+    let walkTimeout = null;
+
+    function buildPlayerIcon() {
+      let avatarHTML = '<span style="font-size:1.4rem">🧑</span>';
+      if (window.AvatarStore && window.renderAvatarSVG) {
+        const eq = window.AvatarStore.getEquipped();
+        avatarHTML = window.renderAvatarSVG(eq);
+      }
+      const walkClass = isWalking ? 'walking' : 'idle';
+      return L.divIcon({
+        className: '',
+        html: `<div class="player-avatar-marker ${walkClass}">
+          <div class="player-ground-shadow"></div>
+          ${avatarHTML}
+          <div class="player-direction"></div>
+        </div>`,
+        iconSize: [56, 80],
+        iconAnchor: [28, 72],
+      });
+    }
+
+    function setWalking(walking) {
+      if (walking === isWalking) return;
+      isWalking = walking;
+      if (playerMarker) playerMarker.setIcon(buildPlayerIcon());
+    }
+
+    function updatePlayerPosition(latlng, accuracy) {
+      if (!playerMarker) {
+        playerMarker = L.marker(latlng, { icon: buildPlayerIcon(), zIndexOffset: 1000 }).addTo(map);
+        // Fixed collection range ring (80 m)
+        rangeCircle = L.circle(latlng, {
+          radius: 80,
+          color: 'rgba(180,120,255,0.5)',
+          fillColor: 'rgba(180,120,255,0.04)',
+          fillOpacity: 1, weight: 1.5,
+          dashArray: '6 4',
+        }).addTo(map);
+      } else {
+        playerMarker.setLatLng(latlng);
+        if (rangeCircle) rangeCircle.setLatLng(latlng);
+      }
+
+      if (!accuracyCircle) {
+        accuracyCircle = L.circle(latlng, {
+          radius: accuracy,
+          color: 'rgba(0,212,255,0.4)', fillColor: 'rgba(0,212,255,0.05)',
+          fillOpacity: 1, weight: 1,
+        }).addTo(map);
+      } else {
+        accuracyCircle.setLatLng(latlng);
+        accuracyCircle.setRadius(accuracy);
+      }
+    }
+
+    // ── Demo hotspots ──
+    const demoHotspots = [
+      { lat: 51.168, lng: 10.445, name: 'Park Hauptplatz',  trash: 'Plastik, Glas', severity: 'high',   pts: 30 },
+      { lat: 51.162, lng: 10.458, name: 'Grünanlagen Süd',  trash: 'Papier, Karton',severity: 'medium', pts: 20 },
+      { lat: 51.170, lng: 10.462, name: 'Waldrand Ost',     trash: 'Organik',        severity: 'low',    pts: 10 },
+    ];
+
+    function hotspotIcon(severity) {
+      const emoji = severity === 'high' ? '🔥' : severity === 'medium' ? '⚠️' : 'ℹ️';
+      return L.divIcon({
+        className: '',
+        html: `<div class="hotspot-icon ${severity}">${emoji}</div>`,
+        iconSize: [40, 40], iconAnchor: [20, 20], popupAnchor: [0, -22],
+      });
+    }
+
+    function addHotspotToMap(h) {
+      L.marker([h.lat, h.lng], { icon: hotspotIcon(h.severity) }).addTo(map)
+       .bindPopup(`
+        <div class="popup-title">${h.severity==='high'?'⛔':h.severity==='medium'?'⚠️':'ℹ️'} ${h.name}</div>
+        <div class="popup-sub">Müllart: ${h.trash}<br>Belohnung: <strong style="color:#00cc66">+${h.pts} Pts</strong></div>
+        <button class="popup-btn" onclick="helpHotspot(${h.pts})">🚀 Helfen!</button>
+       `, { maxWidth: 220 });
+    }
+
+    demoHotspots.forEach(addHotspotToMap);
+
+    // ── Disposal / Entsorgungsstationen ──
+    const disposalStations = [
+      { lat: 51.1665, lng: 10.449, name: 'Mülleimer Parkeingang',    type: 'muelleimer', icon: '🗑️', desc: 'Öffentlicher Mülleimer' },
+      { lat: 51.1680, lng: 10.453, name: 'Mülleimer Bushaltestelle', type: 'muelleimer', icon: '🗑️', desc: 'Öffentlicher Mülleimer' },
+      { lat: 51.1640, lng: 10.442, name: 'Mülleimer Marktplatz',     type: 'muelleimer', icon: '🗑️', desc: 'Öffentlicher Mülleimer' },
+      { lat: 51.1695, lng: 10.460, name: 'Mülleimer Spielplatz',     type: 'muelleimer', icon: '🗑️', desc: 'Öffentlicher Mülleimer' },
+      { lat: 51.1650, lng: 10.455, name: 'Glascontainer Südstraße',   type: 'glas',       icon: '🫙', desc: 'Weiß · Braun · Grün' },
+      { lat: 51.1710, lng: 10.448, name: 'Glascontainer Nordplatz',   type: 'glas',       icon: '🫙', desc: 'Weiß · Braun · Grün' },
+      { lat: 51.1620, lng: 10.465, name: 'Wertstoffhof Ost',         type: 'wertstoff',  icon: '♻️', desc: 'Mo–Fr 8–17, Sa 9–13 Uhr' },
+      { lat: 51.1590, lng: 10.438, name: 'Altkleider Hauptstraße',   type: 'kleider',    icon: '👕', desc: 'Altkleider & Schuhe' },
+      { lat: 51.1630, lng: 10.470, name: 'Elektroschrott-Sammlung',  type: 'elektro',    icon: '🔌', desc: 'Kleingeräte & Batterien' },
+    ];
+
+    function disposalIcon(type, icon) {
+      return L.divIcon({
+        className: '',
+        html: `<div class="disposal-icon ${type}">${icon}</div>`,
+        iconSize: [36, 36], iconAnchor: [18, 18], popupAnchor: [0, -20],
+      });
+    }
+
+    disposalStations.forEach(s => {
+      L.marker([s.lat, s.lng], { icon: disposalIcon(s.type, s.icon) }).addTo(map)
+        .bindPopup(`
+          <div class="popup-category ${s.type}">${s.icon} ${s.type === 'muelleimer' ? 'Mülleimer' : s.type === 'glas' ? 'Glascontainer' : s.type === 'wertstoff' ? 'Wertstoffhof' : s.type === 'kleider' ? 'Altkleider' : 'Elektroschrott'}</div>
+          <div class="popup-title">${s.name}</div>
+          <div class="popup-sub">${s.desc}</div>
+        `, { maxWidth: 220 });
+    });
+
+    // ── GPS ──
+    function startGPS() {
+      if (!navigator.geolocation) { setGPSStatus('unavailable'); return; }
+      setGPSStatus('searching');
+      watchId = navigator.geolocation.watchPosition(
+        (pos) => {
+          const latlng = L.latLng(pos.coords.latitude, pos.coords.longitude);
+          updatePlayerPosition(latlng, pos.coords.accuracy);
+          if (lastLatLng) {
+            const d = lastLatLng.distanceTo(latlng) / 1000;
+            if (d > 0.003) {
+              totalDistance += d;
+              document.getElementById('stat-dist').textContent = totalDistance.toFixed(2);
+              lastLatLng = latlng;
+              // Detect walking
+              setWalking(true);
+              clearTimeout(walkTimeout);
+              walkTimeout = setTimeout(() => setWalking(false), 3000);
+            }
+          } else {
+            lastLatLng = latlng;
+            map.setView(latlng, 17);
+          }
+          setGPSStatus('active');
+        },
+        (err) => { console.warn('GPS:', err.message); setGPSStatus('error'); },
+        { enableHighAccuracy: true, maximumAge: 3000, timeout: 10000 }
+      );
+    }
+
+    function stopGPS() {
+      if (watchId !== null) { navigator.geolocation.clearWatch(watchId); watchId = null; }
+    }
+
+    function setGPSStatus(state) {
+      const dot = document.getElementById('gps-dot');
+      const label = document.getElementById('gps-label');
+      dot.className = 'gps-dot';
+      if (state === 'active')      { dot.classList.add('active');    label.textContent = 'GPS aktiv'; }
+      else if (state === 'searching') { dot.classList.add('searching'); label.textContent = 'GPS sucht…'; }
+      else if (state === 'error')  { label.textContent = 'Kein GPS'; }
+      else                         { label.textContent = 'GPS aus'; }
+    }
+
+    function locateMe() {
+      if (playerMarker) { map.setView(playerMarker.getLatLng(), 17, { animate: true }); }
+      else { startGPS(); showToast('📍 GPS wird aktiviert…'); }
+    }
+
+    // ── Clock ──
+    setInterval(() => {
+      const now = new Date();
+      document.getElementById('live-time').textContent =
+        String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
+      const elapsed = Math.floor((Date.now() - sessionStart) / 1000);
+      const m = Math.floor(elapsed / 60), s = elapsed % 60;
+      document.getElementById('stat-time').textContent = m + ':' + String(s).padStart(2,'0');
+    }, 1000);
+
+    // ── Trash Drawer ──
+    function openTrashDrawer() {
+      document.getElementById('trash-drawer').classList.add('open');
+      document.getElementById('drawer-backdrop').classList.add('open');
+    }
+    function closeTrashDrawer() {
+      document.getElementById('trash-drawer').classList.remove('open');
+      document.getElementById('drawer-backdrop').classList.remove('open');
+    }
+
+    function selectTrash(btn, type, pts) {
+      document.querySelectorAll('#trash-drawer .trash-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      selectedTrash = type; selectedPts = pts;
+      document.getElementById('drawer-confirm-btn').textContent = `📸 ${type.charAt(0).toUpperCase()+type.slice(1)} +${pts} Pts – Bestätigen`;
+    }
+
+    function confirmTrashLog() {
+      if (!selectedTrash) { showToast('⚠️ Bitte Müll-Typ wählen!'); return; }
+      // Open photo modal with type hint
+      document.getElementById('photo-type-hint').textContent = `Müll-Typ: ${selectedTrash}  |  +${selectedPts} Pts`;
+      closeTrashDrawer();
+      openModal('photo-modal');
+    }
+
+    // ── Photo Modal ──
+    function openPhotoModal() {
+      document.getElementById('photo-type-hint').textContent = selectedTrash
+        ? `Müll-Typ: ${selectedTrash}  |  +${selectedPts} Pts`
+        : '⚠️ Bitte zuerst Müll-Typ über den ♻️ Button wählen';
+      openModal('photo-modal');
+    }
+
+    function submitPhoto() {
+      if (!selectedTrash) { showToast('⚠️ Bitte Müll-Typ wählen!'); closeModal('photo-modal'); return; }
+      photos++;
+      points += selectedPts;
+      document.getElementById('stat-photos').textContent = photos;
+      document.getElementById('stat-pts').textContent = points;
+
+      if (playerMarker) {
+        const emoji = { plastic:'🛍️', glass:'🥃', bulky:'🪑', organic:'🌿' }[selectedTrash] || '📍';
+        L.marker(playerMarker.getLatLng(), {
+          icon: L.divIcon({ className:'', html:`<div style="font-size:1.5rem;filter:drop-shadow(0 2px 6px #000)">${emoji}</div>`, iconSize:[30,30], iconAnchor:[15,15] })
+        }).addTo(map).bindPopup(`${emoji} +${selectedPts} Pts`);
+      }
+
+      closeModal('photo-modal');
+      showToast(`📸 +${selectedPts} Pts! Danke!`);
+      document.querySelectorAll('#trash-drawer .trash-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById('drawer-confirm-btn').textContent = '📸 Foto + Bestätigen';
+      selectedTrash = null; selectedPts = 0;
+    }
+
+    // ── Report Modal ──
+    function openReportModal() {
+      selectedSeverity = null;
+      document.querySelectorAll('#report-modal .trash-btn').forEach(b => b.classList.remove('active'));
+      openModal('report-modal');
+    }
+
+    function selectSeverity(sev, pts) {
+      document.querySelectorAll('#report-modal .trash-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById('sev-' + sev).classList.add('active');
+      selectedSeverity = sev; selectedSevPts = pts;
+    }
+
+    function submitReport() {
+      if (!selectedSeverity) { showToast('⚠️ Schweregrad wählen!'); return; }
+      points += selectedSevPts;
+      document.getElementById('stat-pts').textContent = points;
+      if (playerMarker) {
+        addHotspotToMap({
+          lat: playerMarker.getLatLng().lat + (Math.random()-0.5)*0.001,
+          lng: playerMarker.getLatLng().lng + (Math.random()-0.5)*0.001,
+          name: 'Neuer Hotspot', trash: 'Unbekannt',
+          severity: selectedSeverity, pts: selectedSevPts,
+        });
+      }
+      closeModal('report-modal');
+      showToast(`📍 Hotspot gemeldet! +${selectedSevPts} Pts`);
+    }
+
+    function helpHotspot(pts) {
+      map.closePopup();
+      showToast(`🚀 +${pts} Pts! Du hilfst beim Bereinigen!`);
+    }
+
+    // ── End Session ──
+    function openEndConfirm() { openModal('end-modal'); }
+
+    function endSession() {
+      stopGPS();
+      closeModal('end-modal');
+      document.getElementById('res-photos').textContent = photos;
+      document.getElementById('res-pts').textContent = points;
+      document.getElementById('res-dist').textContent = totalDistance.toFixed(2);
+      const bonus = Math.floor(photos * 5 + totalDistance * 5);
+      document.getElementById('result-sub').textContent = `Bonus: +${bonus} Pts · Gesamt: +${points + bonus} Pts`;
+      document.getElementById('result-screen').style.display = 'flex';
+    }
+
+    // ── Modals ──
+    function openModal(id)  { document.getElementById(id).classList.add('open'); }
+    function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+    document.querySelectorAll('.modal-overlay').forEach(o => {
+      o.addEventListener('click', e => { if (e.target === o) o.classList.remove('open'); });
+    });
+
+    // ── Toast ──
+    function showToast(msg) {
+      const old = document.querySelector('.toast');
+      if (old) old.remove();
+      const t = document.createElement('div');
+      t.className = 'toast'; t.textContent = msg;
+      document.body.appendChild(t);
+      setTimeout(() => { t.style.opacity='0'; t.style.transition='opacity 0.3s'; setTimeout(()=>t.remove(),300); }, 2500);
+    }
+
+    // ── Init ──
+    window.addEventListener('load', () => {
+      startGPS();
+
+      // Render avatar portrait in bottom bar
+      if (window.AvatarStore && window.renderAvatarSVG) {
+        const eq = window.AvatarStore.getEquipped();
+        document.getElementById('bottom-portrait').innerHTML = window.renderAvatarSVG(eq);
+
+        const coins = window.AvatarStore.getCoins();
+        const level = Math.max(1, Math.floor(coins / 500) + 1);
+        document.getElementById('player-name-label').textContent = 'Sammler';
+        document.querySelector('.player-level').textContent = `⭐ Level ${level}`;
+        const xpPct = ((coins % 500) / 500 * 100).toFixed(0);
+        document.getElementById('xp-fill').style.width = xpPct + '%';
+      }
+    });
+  </script>
+</body>
+</html>

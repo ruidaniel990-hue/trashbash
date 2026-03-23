@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+  <meta name="theme-color" content="#0a0e1a">
+  <title>Trash Bash – Hotspot-Karte</title>
+  <link rel="stylesheet" href="leaflet.css"/>
+  <script src="leaflet.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800;900&display=swap');
+    * { margin:0; padding:0; box-sizing:border-box; }
+    :root {
+      --bg:#0a0e1a; --surface:#111827; --surface2:#1a2332; --border:#1e3a5f;
+      --cyan:#00d4ff; --cyan-glow:rgba(0,212,255,0.3);
+      --yellow:#ffcc00; --green:#00cc66; --green-glow:rgba(0,204,102,0.3);
+      --red:#ff4444; --orange:#ff8800; --text:#e8f4fd; --muted:#6b8ca4;
+    }
+    html,body { height:100%; overflow:hidden; font-family:'Nunito',-apple-system,sans-serif; background:var(--bg); color:var(--text); }
+
+    /* ── MAP ── */
+    #map { position:absolute; inset:0; z-index:0; }
+    .leaflet-control-attribution { background:rgba(10,14,26,0.8)!important; color:#6b8ca4!important; font-size:0.6rem!important; }
+    .leaflet-control-attribution a { color:var(--cyan)!important; }
+    .leaflet-control-zoom { display:none!important; }
+    .leaflet-popup-content-wrapper { background:rgba(17,24,39,0.97)!important; border:1px solid var(--border)!important; border-radius:18px!important; backdrop-filter:blur(16px); box-shadow:0 8px 32px rgba(0,0,0,0.6)!important; color:var(--text)!important; }
+    .leaflet-popup-tip { background:rgba(17,24,39,0.97)!important; }
+    .leaflet-popup-close-button { color:var(--muted)!important; font-size:1.2rem!important; }
+
+    /* ── HOTSPOT MARKERS ── */
+    .hs-pin {
+      display:flex; flex-direction:column; align-items:center;
+      cursor:pointer;
+    }
+    .hs-bubble {
+      width:42px; height:42px; border-radius:50%;
+      display:flex; align-items:center; justify-content:center;
+      font-size:1.1rem; border:2px solid rgba(255,255,255,0.3);
+      box-shadow:0 4px 16px rgba(0,0,0,0.5);
+      animation:hs-bounce 2.5s ease-in-out infinite;
+    }
+    .hs-bubble.high   { background:rgba(255,68,68,0.9);  box-shadow:0 0 18px rgba(255,68,68,0.7); }
+    .hs-bubble.medium { background:rgba(255,136,0,0.9);  box-shadow:0 0 18px rgba(255,136,0,0.6); }
+    .hs-bubble.low    { background:rgba(0,180,100,0.9);  box-shadow:0 0 18px rgba(0,180,100,0.5); }
+    .hs-tail {
+      width:3px; height:8px; border-radius:2px;
+      margin-top:-1px;
+    }
+    .hs-tail.high   { background:rgba(255,68,68,0.7); }
+    .hs-tail.medium { background:rgba(255,136,0,0.7); }
+    .hs-tail.low    { background:rgba(0,180,100,0.7); }
+    @keyframes hs-bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-5px)} }
+
+    /* ── TOP BAR ── */
+    .top-bar {
+      position:absolute; top:0; left:0; right:0; z-index:500;
+      background:linear-gradient(180deg,rgba(10,14,26,0.96) 0%,transparent 100%);
+      padding:max(12px,env(safe-area-inset-top)) 14px 28px;
+      display:flex; align-items:center; gap:10px;
+      pointer-events:none;
+    }
+    .top-bar > * { pointer-events:all; }
+    .back-btn {
+      width:38px; height:38px; background:rgba(17,24,39,0.9); border:1px solid var(--border);
+      border-radius:50%; display:flex; align-items:center; justify-content:center;
+      color:var(--text); text-decoration:none; font-size:1rem; flex-shrink:0;
+      backdrop-filter:blur(10px);
+    }
+    .top-title { flex:1; font-size:1rem; font-weight:900; color:var(--red); text-shadow:0 0 12px rgba(255,68,68,0.4); }
+    .locate-btn {
+      width:38px; height:38px; background:rgba(17,24,39,0.9); border:1px solid var(--border);
+      border-radius:50%; display:flex; align-items:center; justify-content:center;
+      font-size:1.1rem; cursor:pointer; backdrop-filter:blur(10px);
+    }
+
+    /* ── FILTER BAR ── */
+    .filter-bar {
+      position:absolute; z-index:400;
+      top:max(66px,calc(env(safe-area-inset-top)+52px));
+      left:0; right:0;
+      display:flex; gap:8px; padding:0 14px;
+      overflow-x:auto; scrollbar-width:none;
+      pointer-events:none;
+    }
+    .filter-bar > * { pointer-events:all; }
+    .filter-bar::-webkit-scrollbar { display:none; }
+    .filter-chip {
+      display:flex; align-items:center; gap:5px;
+      background:rgba(17,24,39,0.92); border:1px solid var(--border);
+      border-radius:20px; padding:6px 12px; white-space:nowrap;
+      font-size:0.72rem; font-weight:800; cursor:pointer;
+      backdrop-filter:blur(10px); transition:all 0.2s; flex-shrink:0;
+    }
+    .filter-chip.active-all    { border-color:var(--cyan);   color:var(--cyan);   background:rgba(0,212,255,0.1); }
+    .filter-chip.active-high   { border-color:var(--red);    color:var(--red);    background:rgba(255,68,68,0.1); }
+    .filter-chip.active-medium { border-color:var(--orange); color:var(--orange); background:rgba(255,136,0,0.1); }
+    .filter-chip.active-low    { border-color:var(--green);  color:var(--green);  background:rgba(0,180,100,0.1); }
+
+    /* ── BOTTOM SHEET ── */
+    .bottom-sheet {
+      position:absolute; bottom:0; left:0; right:0; z-index:400;
+      background:rgba(10,14,26,0.98); backdrop-filter:blur(24px);
+      border-top:1px solid var(--border); border-radius:24px 24px 0 0;
+      padding:0 16px max(16px,env(safe-area-inset-bottom));
+      transition: transform 0.35s cubic-bezier(0.4,0,0.2,1);
+      transform: translateY(calc(100% - 72px)); /* collapsed: only handle+header visible */
+    }
+    .bottom-sheet.expanded {
+      transform: translateY(0);
+      max-height: 55vh;
+      overflow-y: auto;
+    }
+    .sheet-handle {
+      width:44px; height:5px; background:var(--border); border-radius:3px; margin:14px auto 0;
+      cursor:pointer;
+    }
+    .sheet-header {
+      display:flex; align-items:center; justify-content:space-between;
+      padding: 12px 0 14px; cursor:pointer;
+    }
+    .sheet-title { font-size:0.9rem; font-weight:900; }
+    .sheet-count { font-size:0.75rem; color:var(--muted); font-weight:800; }
+
+    /* ── HOTSPOT LIST ITEM ── */
+    .hs-item {
+      display:flex; align-items:center; gap:12px;
+      padding:12px 0; border-bottom:1px solid rgba(255,255,255,0.05);
+      cursor:pointer; transition:all 0.15s;
+    }
+    .hs-item:last-child { border-bottom:none; }
+    .hs-item:active { opacity:0.7; }
+    .hs-dot {
+      width:12px; height:12px; border-radius:50%; flex-shrink:0;
+      box-shadow:0 0 8px currentColor;
+    }
+    .hs-dot.high   { background:var(--red);    color:var(--red); }
+    .hs-dot.medium { background:var(--orange); color:var(--orange); }
+    .hs-dot.low    { background:var(--green);  color:var(--green); }
+    .hs-item-info { flex:1; min-width:0; }
+    .hs-item-name { font-size:0.88rem; font-weight:900; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .hs-item-meta { font-size:0.68rem; color:var(--muted); font-weight:700; margin-top:2px; }
+    .hs-item-pts { font-size:0.8rem; font-weight:900; color:var(--green); flex-shrink:0; }
+
+    /* ── POPUP ── */
+    .popup-header { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+    .popup-sev { font-size:0.65rem; font-weight:900; text-transform:uppercase; letter-spacing:0.5px; padding:3px 8px; border-radius:20px; }
+    .popup-sev.high   { background:rgba(255,68,68,0.2);   color:var(--red); }
+    .popup-sev.medium { background:rgba(255,136,0,0.2);   color:var(--orange); }
+    .popup-sev.low    { background:rgba(0,180,100,0.2);   color:var(--green); }
+    .popup-name { font-size:0.95rem; font-weight:900; }
+    .popup-reporter { font-size:0.7rem; color:var(--muted); font-weight:700; margin-bottom:8px; }
+    .popup-trash { font-size:0.78rem; color:var(--text); margin-bottom:10px; }
+    .popup-pts { font-size:0.78rem; font-weight:900; color:var(--green); margin-bottom:12px; }
+    .popup-btn {
+      width:100%; background:linear-gradient(135deg,#cc2200,var(--red)); border:none;
+      border-radius:12px; color:white; padding:10px;
+      font-family:'Nunito',sans-serif; font-weight:900; font-size:0.82rem; cursor:pointer;
+    }
+
+    /* ── REPORT FAB ── */
+    .report-fab {
+      position:absolute; right:14px;
+      bottom:90px; /* sits just above the collapsed sheet */
+      width:52px; height:52px; border-radius:50%; border:none;
+      background:linear-gradient(135deg,#cc2200,var(--red));
+      box-shadow:0 4px 20px rgba(255,68,68,0.5);
+      display:flex; align-items:center; justify-content:center;
+      font-size:1.4rem; cursor:pointer; z-index:410; transition:all 0.2s;
+    }
+    .report-fab:active { transform:scale(0.92); }
+
+    /* ── TOAST ── */
+    .toast {
+      position:fixed; top:80px; left:50%; transform:translateX(-50%);
+      background:rgba(0,204,102,0.15); backdrop-filter:blur(14px);
+      border:1px solid rgba(0,204,102,0.4); color:var(--green);
+      padding:10px 22px; border-radius:50px;
+      font-size:0.85rem; font-weight:800; white-space:nowrap; z-index:3000;
+      animation:toastIn 0.3s ease-out;
+    }
+    @keyframes toastIn { from{opacity:0;transform:translateX(-50%) translateY(-8px)} to{opacity:1;transform:translateX(-50%) translateY(0)} }
+
+    /* ── REPORT MODAL ── */
+    .modal-overlay {
+      position:fixed; inset:0; z-index:1000;
+      background:rgba(0,0,0,0.75); backdrop-filter:blur(10px);
+      display:flex; align-items:center; justify-content:center; padding:20px;
+      opacity:0; pointer-events:none; transition:opacity 0.25s;
+    }
+    .modal-overlay.open { opacity:1; pointer-events:all; }
+    .modal {
+      background:var(--surface); border:1px solid var(--border);
+      border-radius:28px; padding:26px 22px;
+      width:100%; max-width:360px;
+      box-shadow:0 20px 60px rgba(0,0,0,0.7);
+      transform:scale(0.9) translateY(16px); transition:transform 0.25s;
+    }
+    .modal-overlay.open .modal { transform:scale(1) translateY(0); }
+    .modal-title { font-size:1.1rem; font-weight:900; margin-bottom:4px; }
+    .modal-sub   { font-size:0.8rem; color:var(--muted); margin-bottom:18px; font-weight:600; }
+    .sev-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:16px; }
+    .sev-btn {
+      background:var(--surface2); border:2px solid var(--border);
+      border-radius:14px; padding:12px 6px; cursor:pointer; text-align:center; transition:all 0.2s;
+    }
+    .sev-btn.active.high   { border-color:var(--red);    background:rgba(255,68,68,0.12); }
+    .sev-btn.active.medium { border-color:var(--orange); background:rgba(255,136,0,0.12); }
+    .sev-btn.active.low    { border-color:var(--green);  background:rgba(0,180,100,0.12); }
+    .sev-emoji { font-size:1.4rem; display:block; }
+    .sev-label { font-size:0.62rem; font-weight:900; text-transform:uppercase; margin-top:4px; color:var(--muted); }
+    .sev-pts   { font-size:0.6rem; font-weight:900; color:var(--green); }
+    /* Location row */
+    .loc-row {
+      display:flex; align-items:center; gap:8px;
+      background:var(--surface2); border:1px solid var(--border);
+      border-radius:12px; padding:10px 14px; margin-bottom:14px;
+    }
+    .loc-icon { font-size:1rem; flex-shrink:0; }
+    .loc-text { flex:1; font-size:0.78rem; font-weight:800; color:var(--muted); }
+    .loc-text.found { color:var(--green); }
+
+    /* Trash type chips */
+    .trash-section-label { font-size:0.65rem; font-weight:900; text-transform:uppercase; letter-spacing:0.5px; color:var(--muted); margin-bottom:8px; }
+    .trash-chips { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:14px; }
+    .trash-chip {
+      display:flex; align-items:center; gap:5px;
+      background:var(--surface2); border:1px solid var(--border);
+      border-radius:20px; padding:6px 12px;
+      font-size:0.75rem; font-weight:800; cursor:pointer; transition:all 0.15s;
+    }
+    .trash-chip.selected { border-color:var(--red); background:rgba(255,68,68,0.12); color:var(--text); }
+    .trash-chip:active { transform:scale(0.95); }
+
+    /* Photo button */
+    .photo-row {
+      display:flex; align-items:center; gap:10px;
+      background:rgba(0,117,190,0.08); border:1px dashed rgba(0,117,190,0.4);
+      border-radius:12px; padding:10px 14px; margin-bottom:16px; cursor:pointer;
+    }
+    .photo-row:active { opacity:0.7; }
+    .photo-label { font-size:0.78rem; font-weight:800; color:var(--cyan); flex:1; }
+    .photo-sub { font-size:0.65rem; color:var(--muted); font-weight:700; }
+
+    .modal-btns { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    .btn-cancel { background:var(--surface2); border:1px solid var(--border); border-radius:14px; color:var(--muted); font-family:'Nunito',sans-serif; font-weight:800; font-size:0.85rem; padding:12px; cursor:pointer; }
+    .btn-report { background:linear-gradient(135deg,#cc2200,var(--red)); border:none; border-radius:14px; color:white; font-family:'Nunito',sans-serif; font-weight:900; font-size:0.85rem; padding:12px; cursor:pointer; box-shadow:0 4px 14px rgba(255,68,68,0.3); }
+  </style>
+</head>
+<body>
+
+  <div id="map"></div>
+
+  <!-- TOP BAR -->
+  <div class="top-bar">
+    <a href="index.html" class="back-btn">←</a>
+    <div class="top-title">🔥 Hotspot-Karte</div>
+    <div class="locate-btn" onclick="locateMe()">🎯</div>
+  </div>
+
+  <!-- FILTER CHIPS -->
+  <div class="filter-bar">
+    <div class="filter-chip active-all" id="chip-all"    onclick="setFilter('all')">🗺️ Alle (<span id="cnt-all">0</span>)</div>
+    <div class="filter-chip"            id="chip-high"   onclick="setFilter('high')">🔴 Hoch (<span id="cnt-high">0</span>)</div>
+    <div class="filter-chip"            id="chip-medium" onclick="setFilter('medium')">🟠 Mittel (<span id="cnt-medium">0</span>)</div>
+    <div class="filter-chip"            id="chip-low"    onclick="setFilter('low')">🟢 Gering (<span id="cnt-low">0</span>)</div>
+  </div>
+
+  <!-- REPORT FAB -->
+  <button class="report-fab" onclick="openReportModal()" title="Hotspot melden">🔥</button>
+
+  <!-- BOTTOM SHEET -->
+  <div class="bottom-sheet" id="bottom-sheet">
+    <div class="sheet-handle" onclick="toggleSheet()"></div>
+    <div class="sheet-header" onclick="toggleSheet()">
+      <div class="sheet-title">🔥 Gemeldete Hotspots</div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div class="sheet-count" id="sheet-count">0 Orte</div>
+        <div id="sheet-arrow" style="color:var(--muted);font-size:0.8rem;transition:transform 0.3s;">▲</div>
+      </div>
+    </div>
+    <div id="hs-list"></div>
+  </div>
+
+  <!-- REPORT MODAL -->
+  <div class="modal-overlay" id="report-modal">
+    <div class="modal">
+      <div class="modal-title">🔥 Hotspot melden</div>
+      <div class="modal-sub">Was hast du gefunden?</div>
+
+      <!-- GPS Location -->
+      <div class="loc-row">
+        <span class="loc-icon">📍</span>
+        <span class="loc-text" id="loc-text">Standort wird ermittelt…</span>
+        <span id="loc-spinner" style="font-size:0.8rem;">🔄</span>
+      </div>
+
+      <!-- Schweregrad -->
+      <div class="trash-section-label">Schweregrad</div>
+      <div class="sev-grid" style="margin-bottom:14px;">
+        <div class="sev-btn high"   id="sev-high"   onclick="pickSev('high')">
+          <span class="sev-emoji">🔴</span><span class="sev-label">Hoch</span><span class="sev-pts">+30</span>
+        </div>
+        <div class="sev-btn medium" id="sev-medium" onclick="pickSev('medium')">
+          <span class="sev-emoji">🟠</span><span class="sev-label">Mittel</span><span class="sev-pts">+20</span>
+        </div>
+        <div class="sev-btn low"    id="sev-low"    onclick="pickSev('low')">
+          <span class="sev-emoji">🟢</span><span class="sev-label">Gering</span><span class="sev-pts">+10</span>
+        </div>
+      </div>
+
+      <!-- Müll-Typ Chips -->
+      <div class="trash-section-label">Müllart (mehrere möglich)</div>
+      <div class="trash-chips" id="trash-chips">
+        <div class="trash-chip" onclick="toggleTrashChip(this,'Plastik')">🛍️ Plastik</div>
+        <div class="trash-chip" onclick="toggleTrashChip(this,'Glas')">🍾 Glas</div>
+        <div class="trash-chip" onclick="toggleTrashChip(this,'Papier')">📦 Papier</div>
+        <div class="trash-chip" onclick="toggleTrashChip(this,'Dosen')">🥫 Dosen</div>
+        <div class="trash-chip" onclick="toggleTrashChip(this,'Sperrmüll')">🪑 Sperrmüll</div>
+        <div class="trash-chip" onclick="toggleTrashChip(this,'Organik')">🌿 Organik</div>
+        <div class="trash-chip" onclick="toggleTrashChip(this,'Zigaretten')">🚬 Zigaretten</div>
+        <div class="trash-chip" onclick="toggleTrashChip(this,'Elektronik')">🔋 Elektronik</div>
+        <div class="trash-chip" onclick="toggleTrashChip(this,'Kleidung')">👕 Kleidung</div>
+        <div class="trash-chip" onclick="toggleTrashChip(this,'Sonstiges')">🗑️ Sonstiges</div>
+      </div>
+
+      <!-- Foto aus Umgebung -->
+      <label class="photo-row">
+        <span style="font-size:1.2rem;">📷</span>
+        <div>
+          <div class="photo-label">Foto aus der Umgebung einfügen</div>
+          <div class="photo-sub">Optional · hilft anderen Sammlern</div>
+        </div>
+        <span id="photo-status" style="font-size:0.75rem;color:var(--muted);font-weight:800;"></span>
+        <input type="file" accept="image/*" capture="environment" id="report-photo" style="display:none" onchange="onPhotoSelected()">
+      </label>
+
+      <div class="modal-btns">
+        <button class="btn-cancel" onclick="closeModal()">Abbrechen</button>
+        <button class="btn-report" onclick="submitReport()">📍 Melden</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ── Demo / stored hotspots ──
+    const STORAGE_KEY = 'tb_hotspots';
+
+    const DEMO_HOTSPOTS = [
+      { id:1, lat:51.168,  lng:10.445, name:'Park Hauptplatz',   trash:'Plastik, Glas',    severity:'high',   pts:30, reporter:'GreenHero42',  time:'vor 12 Min' },
+      { id:2, lat:51.162,  lng:10.458, name:'Grünanlagen Süd',   trash:'Papier, Karton',   severity:'medium', pts:20, reporter:'EcoWarrior7',   time:'vor 35 Min' },
+      { id:3, lat:51.170,  lng:10.462, name:'Waldrand Ost',      trash:'Organik, Reste',   severity:'low',    pts:10, reporter:'CleanCity99',   time:'vor 1 Std' },
+      { id:4, lat:51.155,  lng:10.440, name:'Bahnhofsvorplatz',  trash:'Zigaretten, Dosen',severity:'high',   pts:30, reporter:'MülljägerBln',  time:'vor 2 Std' },
+      { id:5, lat:51.175,  lng:10.453, name:'Spielplatz Nord',   trash:'Plastikflaschen',  severity:'medium', pts:20, reporter:'KidSafe2024',   time:'vor 3 Std' },
+      { id:6, lat:51.160,  lng:10.470, name:'Uferweg West',      trash:'Sperrmüll',        severity:'high',   pts:30, reporter:'RiverClean',    time:'vor 4 Std' },
+      { id:7, lat:51.178,  lng:10.435, name:'Marktplatz',        trash:'Verpackungen',     severity:'low',    pts:10, reporter:'StadtSauber',   time:'vor 5 Std' },
+      { id:8, lat:51.150,  lng:10.465, name:'Industriegebiet',   trash:'Chemikalien',      severity:'high',   pts:30, reporter:'HazmatWatch',   time:'gestern' },
+    ];
+
+    let allHotspots = [];
+    let activeFilter = 'all';
+    let selectedSev = null;
+    let markers = {};
+    let playerMarker = null;
+
+    // ── Map ──
+    const map = L.map('map', { zoomControl:false }).setView([51.165, 10.452], 13);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/">CARTO</a>',
+      subdomains:'abcd', maxZoom:19,
+    }).addTo(map);
+
+    // ── Load hotspots ──
+    function loadHotspots() {
+      const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+      allHotspots = [...DEMO_HOTSPOTS, ...stored];
+      renderAll();
+    }
+
+    // ── Render everything ──
+    function renderAll() {
+      // Count by severity
+      const counts = { all: allHotspots.length, high:0, medium:0, low:0 };
+      allHotspots.forEach(h => counts[h.severity]++);
+      document.getElementById('cnt-all').textContent    = counts.all;
+      document.getElementById('cnt-high').textContent   = counts.high;
+      document.getElementById('cnt-medium').textContent = counts.medium;
+      document.getElementById('cnt-low').textContent    = counts.low;
+
+      // Clear old markers
+      Object.values(markers).forEach(m => map.removeLayer(m));
+      markers = {};
+
+      const visible = activeFilter === 'all' ? allHotspots : allHotspots.filter(h => h.severity === activeFilter);
+
+      visible.forEach(h => addMarker(h));
+      renderList(visible);
+      document.getElementById('sheet-count').textContent = visible.length + ' Orte';
+    }
+
+    function addMarker(h) {
+      const emoji = h.severity === 'high' ? '🔥' : h.severity === 'medium' ? '⚠️' : 'ℹ️';
+      const icon = L.divIcon({
+        className:'',
+        html:`<div class="hs-pin"><div class="hs-bubble ${h.severity}">${emoji}</div><div class="hs-tail ${h.severity}"></div></div>`,
+        iconSize:[42, 54], iconAnchor:[21, 54], popupAnchor:[0, -56],
+      });
+      const m = L.marker([h.lat, h.lng], { icon }).addTo(map);
+      m.bindPopup(buildPopup(h), { maxWidth:240 });
+      m.on('click', () => flyTo(h));
+      markers[h.id] = m;
+    }
+
+    function buildPopup(h) {
+      const sevLabel = h.severity === 'high' ? 'Hoch' : h.severity === 'medium' ? 'Mittel' : 'Gering';
+      return `
+        <div class="popup-header">
+          <span class="popup-sev ${h.severity}">${sevLabel}</span>
+        </div>
+        <div class="popup-name">${h.name}</div>
+        <div class="popup-reporter">📍 von ${h.reporter} · ${h.time}</div>
+        <div class="popup-trash">🗑️ ${h.trash}</div>
+        <div class="popup-pts">⭐ +${h.pts} Pts fürs Helfen</div>
+        <button class="popup-btn" onclick="helpHotspot(${h.id},${h.pts})">🚀 Jetzt helfen!</button>
+      `;
+    }
+
+    function renderList(hotspots) {
+      const list = document.getElementById('hs-list');
+      if (hotspots.length === 0) {
+        list.innerHTML = '<div style="text-align:center;padding:24px;color:var(--muted);font-size:0.85rem;font-weight:700;">Keine Hotspots in diesem Filter</div>';
+        return;
+      }
+      list.innerHTML = hotspots.map(h => `
+        <div class="hs-item" onclick="flyTo({lat:${h.lat},lng:${h.lng},id:${h.id}})">
+          <div class="hs-dot ${h.severity}"></div>
+          <div class="hs-item-info">
+            <div class="hs-item-name">${h.name}</div>
+            <div class="hs-item-meta">👤 ${h.reporter} · ${h.time} · ${h.trash}</div>
+          </div>
+          <div class="hs-item-pts">+${h.pts}</div>
+        </div>
+      `).join('');
+    }
+
+    function flyTo(h) {
+      map.flyTo([h.lat, h.lng], 16, { animate:true, duration:0.8 });
+      if (h.id && markers[h.id]) setTimeout(() => markers[h.id].openPopup(), 900);
+    }
+
+    // ── Filter ──
+    function setFilter(f) {
+      activeFilter = f;
+      document.querySelectorAll('.filter-chip').forEach(c => {
+        c.className = 'filter-chip';
+        if (c.id === 'chip-' + f) c.classList.add('active-' + f);
+      });
+      renderAll();
+    }
+
+    // ── GPS ──
+    function locateMe() {
+      if (!navigator.geolocation) { showToast('GPS nicht verfügbar'); return; }
+      navigator.geolocation.getCurrentPosition(pos => {
+        const ll = [pos.coords.latitude, pos.coords.longitude];
+        map.flyTo(ll, 16);
+        if (!playerMarker) {
+          playerMarker = L.circleMarker(ll, { radius:8, color:'#00d4ff', fillColor:'#00d4ff', fillOpacity:1, weight:3 }).addTo(map);
+        } else {
+          playerMarker.setLatLng(ll);
+        }
+      }, () => showToast('📍 GPS-Fehler'));
+    }
+
+    // ── Report ──
+    let reportLat = null, reportLng = null;
+    let selectedTrashTypes = new Set();
+
+    function openReportModal() {
+      selectedSev = null;
+      selectedTrashTypes = new Set();
+      reportLat = null; reportLng = null;
+
+      document.querySelectorAll('.sev-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.trash-chip').forEach(c => c.classList.remove('selected'));
+      document.getElementById('photo-status').textContent = '';
+      document.getElementById('report-photo').value = '';
+
+      // Reset location
+      const locText = document.getElementById('loc-text');
+      const locSpinner = document.getElementById('loc-spinner');
+      locText.textContent = 'Standort wird ermittelt…';
+      locText.className = 'loc-text';
+      locSpinner.textContent = '🔄';
+
+      document.getElementById('report-modal').classList.add('open');
+
+      // Auto-detect GPS
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(pos => {
+          reportLat = pos.coords.latitude;
+          reportLng = pos.coords.longitude;
+          locText.textContent = `${reportLat.toFixed(5)}, ${reportLng.toFixed(5)}`;
+          locText.className = 'loc-text found';
+          locSpinner.textContent = '✅';
+        }, () => {
+          // Fallback to map center
+          const c = map.getCenter();
+          reportLat = c.lat; reportLng = c.lng;
+          locText.textContent = 'Kartenmitte (kein GPS)';
+          locSpinner.textContent = '📍';
+        }, { enableHighAccuracy: true, timeout: 6000 });
+      } else {
+        const c = map.getCenter();
+        reportLat = c.lat; reportLng = c.lng;
+        locText.textContent = 'Kartenmitte';
+        locSpinner.textContent = '📍';
+      }
+    }
+
+    function closeModal() { document.getElementById('report-modal').classList.remove('open'); }
+    document.getElementById('report-modal').addEventListener('click', e => { if (e.target === document.getElementById('report-modal')) closeModal(); });
+
+    function pickSev(s) {
+      selectedSev = s;
+      document.querySelectorAll('.sev-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById('sev-' + s).classList.add('active');
+    }
+
+    function toggleTrashChip(el, type) {
+      if (selectedTrashTypes.has(type)) {
+        selectedTrashTypes.delete(type);
+        el.classList.remove('selected');
+      } else {
+        selectedTrashTypes.add(type);
+        el.classList.add('selected');
+      }
+    }
+
+    function onPhotoSelected() {
+      const f = document.getElementById('report-photo').files[0];
+      document.getElementById('photo-status').textContent = f ? '✅ ' + f.name.substring(0,16) : '';
+    }
+
+    function submitReport() {
+      if (!selectedSev) { showToast('⚠️ Schweregrad wählen!'); return; }
+      if (selectedTrashTypes.size === 0) { showToast('⚠️ Mindestens eine Müllart wählen!'); return; }
+
+      const trash = [...selectedTrashTypes].join(', ');
+      const pts = selectedSev === 'high' ? 30 : selectedSev === 'medium' ? 20 : 10;
+      const profile = JSON.parse(localStorage.getItem('tb_profile') || '{}');
+      const reporter = profile.name || localStorage.getItem('tb_username') || 'Du';
+
+      // Use GPS position or fallback to map center
+      const lat = reportLat ?? map.getCenter().lat;
+      const lng = reportLng ?? map.getCenter().lng;
+
+      const newHotspot = {
+        id: Date.now(),
+        lat, lng,
+        name: [...selectedTrashTypes][0] + ' · ' + (reporter),
+        trash, severity: selectedSev, pts,
+        reporter, time: 'gerade eben',
+      };
+
+      const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+      stored.push(newHotspot);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
+
+      closeModal();
+      loadHotspots();
+      showToast(`📍 Hotspot gemeldet! +${pts} Pts`);
+      setTimeout(() => flyTo(newHotspot), 400);
+    }
+
+    function helpHotspot(id, pts) {
+      map.closePopup();
+      showToast(`🚀 +${pts} Pts! Danke fürs Helfen!`);
+    }
+
+    // ── Toast ──
+    function showToast(msg) {
+      const old = document.querySelector('.toast');
+      if (old) old.remove();
+      const t = document.createElement('div');
+      t.className = 'toast'; t.textContent = msg;
+      document.body.appendChild(t);
+      setTimeout(() => { t.style.opacity='0'; t.style.transition='opacity 0.3s'; setTimeout(()=>t.remove(),300); }, 2500);
+    }
+
+    // ── Sheet toggle ──
+    let sheetOpen = false;
+    function toggleSheet() {
+      sheetOpen = !sheetOpen;
+      const sheet = document.getElementById('bottom-sheet');
+      const arrow = document.getElementById('sheet-arrow');
+      sheet.classList.toggle('expanded', sheetOpen);
+      arrow.style.transform = sheetOpen ? 'rotate(180deg)' : '';
+    }
+
+    window.addEventListener('load', loadHotspots);
+  </script>
+</body>
+</html>
