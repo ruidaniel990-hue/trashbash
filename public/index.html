@@ -741,6 +741,11 @@
 
   <script src="avatar-renderer.js"></script>
   <script>
+    // ── Onboarding Redirect ──
+    if (localStorage.getItem('tb_onboarded') !== 'true') {
+      window.location.replace('welcome.html');
+    }
+
     // Install Prompt
     let deferredPrompt;
     window.addEventListener('beforeinstallprompt', (e) => {

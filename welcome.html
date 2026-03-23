@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+  <meta name="theme-color" content="#0a0e1a">
+  <title>Trash Bash – Willkommen</title>
+  <link rel="manifest" href="manifest.json">
+  <script src="avatar-renderer.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #0a0e1a;
+      --surface: #111827;
+      --surface2: #1a2332;
+      --border: #1e3a5f;
+      --primary: #0075be;
+      --cyan: #00d4ff;
+      --cyan-glow: rgba(0,212,255,0.3);
+      --yellow: #ffcc00;
+      --green: #00cc66;
+      --red: #ff4444;
+      --text: #e8f4fd;
+      --muted: #6b8ca4;
+    }
+
+    html, body {
+      height: 100%;
+      font-family: 'Nunito', -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background:
+        radial-gradient(circle at 50% 30%, rgba(0,117,190,0.08) 0%, transparent 50%),
+        radial-gradient(circle at 70% 80%, rgba(0,212,255,0.05) 0%, transparent 40%);
+      pointer-events: none; z-index: 0;
+    }
+
+    .container {
+      position: relative; z-index: 1;
+      min-height: 100%;
+      display: flex;
+      flex-direction: column;
+      max-width: 420px;
+      margin: 0 auto;
+      padding: 0 20px;
+    }
+
+    /* ── Progress Bar ── */
+    .progress-bar {
+      position: sticky; top: 0; z-index: 10;
+      padding: max(16px, env(safe-area-inset-top)) 0 12px;
+      background: rgba(10,14,26,0.9);
+      backdrop-filter: blur(12px);
+    }
+    .progress-track {
+      height: 4px;
+      background: var(--surface2);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--primary), var(--cyan));
+      border-radius: 2px;
+      transition: width 0.5s ease-out;
+    }
+    .progress-label {
+      font-size: 0.65rem;
+      font-weight: 800;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-top: 6px;
+      text-align: center;
+    }
+
+    /* ── Steps ── */
+    .step {
+      display: none;
+      flex-direction: column;
+      flex: 1;
+      padding: 20px 0 max(30px, env(safe-area-inset-bottom));
+      animation: stepIn 0.4s ease-out;
+    }
+    .step.active { display: flex; }
+    @keyframes stepIn {
+      from { opacity: 0; transform: translateX(30px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+
+    .step-content { flex: 1; display: flex; flex-direction: column; justify-content: center; }
+
+    /* ── Welcome Screen ── */
+    .welcome-logo {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    .welcome-icon {
+      width: 90px; height: 90px;
+      background: linear-gradient(135deg, var(--primary), var(--cyan));
+      border-radius: 28px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 2.8rem;
+      margin: 0 auto 16px;
+      box-shadow: 0 0 40px var(--cyan-glow), 0 8px 24px rgba(0,0,0,0.4);
+      animation: logoFloat 3s ease-in-out infinite;
+    }
+    @keyframes logoFloat {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
+    .welcome-title {
+      font-size: 2rem;
+      font-weight: 900;
+      color: var(--cyan);
+      text-shadow: 0 0 24px var(--cyan-glow);
+      line-height: 1.1;
+    }
+    .welcome-sub {
+      font-size: 0.95rem;
+      color: var(--muted);
+      font-weight: 600;
+      margin-top: 8px;
+      line-height: 1.5;
+    }
+
+    .features {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-top: 30px;
+    }
+    .feature {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px 14px;
+    }
+    .feature-icon { font-size: 1.4rem; flex-shrink: 0; }
+    .feature-text { font-size: 0.8rem; font-weight: 700; }
+
+    /* ── Form Fields ── */
+    .field-group { margin-bottom: 20px; }
+    .field-label {
+      font-size: 0.7rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+    .field-input {
+      width: 100%;
+      background: var(--surface);
+      border: 2px solid var(--border);
+      border-radius: 16px;
+      padding: 14px 18px;
+      color: var(--text);
+      font-family: 'Nunito', sans-serif;
+      font-size: 1.05rem;
+      font-weight: 700;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .field-input::placeholder { color: var(--muted); font-weight: 600; }
+    .field-input:focus { border-color: var(--cyan); box-shadow: 0 0 16px var(--cyan-glow); }
+    .field-input.plz { letter-spacing: 3px; font-size: 1.3rem; text-align: center; }
+    .field-hint {
+      font-size: 0.7rem;
+      color: var(--muted);
+      margin-top: 6px;
+      font-weight: 600;
+    }
+    .field-city-auto {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 10px;
+      padding: 10px 14px;
+      background: rgba(0,204,102,0.08);
+      border: 1px solid rgba(0,204,102,0.2);
+      border-radius: 12px;
+      font-size: 0.85rem;
+      font-weight: 800;
+      color: var(--green);
+      opacity: 0;
+      transform: translateY(6px);
+      transition: opacity 0.3s, transform 0.3s;
+    }
+    .field-city-auto.show { opacity: 1; transform: translateY(0); }
+
+    /* ── Team Selection ── */
+    .step-title {
+      font-size: 1.3rem;
+      font-weight: 900;
+      text-align: center;
+      margin-bottom: 6px;
+    }
+    .step-sub {
+      font-size: 0.85rem;
+      color: var(--muted);
+      text-align: center;
+      font-weight: 600;
+      margin-bottom: 24px;
+    }
+
+    .team-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .team-card {
+      background: var(--surface);
+      border: 2px solid var(--border);
+      border-radius: 18px;
+      padding: 18px 12px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .team-card:hover { border-color: rgba(0,212,255,0.3); transform: translateY(-2px); }
+    .team-card.selected {
+      border-color: var(--cyan);
+      background: rgba(0,212,255,0.06);
+      box-shadow: 0 0 20px var(--cyan-glow);
+    }
+    .team-card-icon { font-size: 2rem; margin-bottom: 6px; }
+    .team-card-name { font-size: 0.85rem; font-weight: 900; }
+    .team-card-sub { font-size: 0.65rem; color: var(--muted); font-weight: 700; margin-top: 2px; }
+
+    /* ── Avatar Preview ── */
+    .avatar-preview {
+      width: 120px; height: 120px;
+      margin: 0 auto 20px;
+      border-radius: 50%;
+      background: rgba(0,212,255,0.06);
+      border: 3px solid rgba(0,212,255,0.3);
+      display: flex; align-items: center; justify-content: center;
+      overflow: hidden;
+      box-shadow: 0 0 30px var(--cyan-glow);
+    }
+    .avatar-preview svg { width: 110px; height: 110px; }
+
+    /* ── Buttons ── */
+    .btn-row {
+      display: flex;
+      gap: 10px;
+      margin-top: auto;
+      padding-top: 20px;
+    }
+    .btn-next {
+      flex: 1;
+      background: linear-gradient(135deg, var(--primary), var(--cyan));
+      border: none;
+      border-radius: 16px;
+      padding: 16px;
+      color: #fff;
+      font-family: 'Nunito', sans-serif;
+      font-size: 1rem;
+      font-weight: 900;
+      cursor: pointer;
+      transition: all 0.2s;
+      box-shadow: 0 4px 20px var(--cyan-glow);
+    }
+    .btn-next:hover { transform: translateY(-2px); box-shadow: 0 6px 28px var(--cyan-glow); }
+    .btn-next:active { transform: translateY(0); }
+    .btn-next:disabled { opacity: 0.4; pointer-events: none; }
+
+    .btn-back {
+      width: 50px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      color: var(--text);
+      font-size: 1.1rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .btn-back:hover { border-color: var(--cyan); }
+
+    .btn-start {
+      flex: 1;
+      background: linear-gradient(135deg, var(--green), #00ee77);
+      border: none;
+      border-radius: 16px;
+      padding: 18px;
+      color: #001a0a;
+      font-family: 'Nunito', sans-serif;
+      font-size: 1.1rem;
+      font-weight: 900;
+      cursor: pointer;
+      transition: all 0.2s;
+      box-shadow: 0 4px 20px rgba(0,204,102,0.3);
+    }
+    .btn-start:hover { transform: translateY(-2px); box-shadow: 0 6px 28px rgba(0,204,102,0.4); }
+    .btn-start:active { transform: scale(0.97); }
+
+    /* ── Toast ── */
+    .toast {
+      position: fixed;
+      bottom: 40px;
+      left: 50%; transform: translateX(-50%);
+      background: rgba(255,68,68,0.15);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255,68,68,0.3);
+      color: var(--red);
+      padding: 12px 22px;
+      border-radius: 50px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      animation: toastIn 0.3s ease-out;
+      z-index: 2000;
+      white-space: nowrap;
+    }
+    @keyframes toastIn {
+      from { opacity: 0; transform: translateX(-50%) translateY(20px); }
+      to { opacity: 1; transform: translateX(-50%) translateY(0); }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+
+    <!-- Progress -->
+    <div class="progress-bar">
+      <div class="progress-track">
+        <div class="progress-fill" id="progress" style="width: 0%"></div>
+      </div>
+      <div class="progress-label" id="progress-label">Willkommen</div>
+    </div>
+
+    <!-- Step 0: Welcome -->
+    <div class="step active" id="step-0">
+      <div class="step-content">
+        <div class="welcome-logo">
+          <div class="welcome-icon">♻️</div>
+          <div class="welcome-title">Trash Bash</div>
+          <div class="welcome-sub">Sammle Müll. Verdiene Punkte.<br>Rette die Umwelt.</div>
+        </div>
+        <div class="features">
+          <div class="feature">
+            <div class="feature-icon">🗺️</div>
+            <div class="feature-text">GPS-Touren mit Live-Tracking</div>
+          </div>
+          <div class="feature">
+            <div class="feature-icon">🏆</div>
+            <div class="feature-text">Punkte, Level & Rangliste</div>
+          </div>
+          <div class="feature">
+            <div class="feature-icon">📅</div>
+            <div class="feature-text">Abfuhrkalender für deine PLZ</div>
+          </div>
+          <div class="feature">
+            <div class="feature-icon">👕</div>
+            <div class="feature-text">Avatar anpassen & freischalten</div>
+          </div>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn-next" onclick="goStep(1)">Los geht's! 🚀</button>
+      </div>
+    </div>
+
+    <!-- Step 1: Name -->
+    <div class="step" id="step-1">
+      <div class="step-content">
+        <div class="step-title">Wie heißt du?</div>
+        <div class="step-sub">Dein Spielername wird in der Rangliste angezeigt</div>
+        <div class="field-group">
+          <div class="field-label">Benutzername</div>
+          <input type="text" class="field-input" id="input-name" placeholder="Dein Name" maxlength="20" autocomplete="off">
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn-back" onclick="goStep(0)">←</button>
+        <button class="btn-next" id="btn-name-next" onclick="goStep(2)" disabled>Weiter</button>
+      </div>
+    </div>
+
+    <!-- Step 2: PLZ -->
+    <div class="step" id="step-2">
+      <div class="step-content">
+        <div class="step-title">Wo bist du zu Hause?</div>
+        <div class="step-sub">Für deinen persönlichen Abfuhrkalender</div>
+        <div class="field-group">
+          <div class="field-label">Postleitzahl</div>
+          <input type="text" class="field-input plz" id="input-plz" placeholder="_ _ _ _ _" maxlength="5" inputmode="numeric" pattern="[0-9]*" autocomplete="off">
+          <div class="field-city-auto" id="city-result">
+            <span>📍</span>
+            <span id="city-name">–</span>
+          </div>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn-back" onclick="goStep(1)">←</button>
+        <button class="btn-next" id="btn-plz-next" onclick="goStep(3)" disabled>Weiter</button>
+      </div>
+    </div>
+
+    <!-- Step 3: Team -->
+    <div class="step" id="step-3">
+      <div class="step-content">
+        <div class="step-title">Wähle dein Team</div>
+        <div class="step-sub">Sammle gemeinsam mit Gleichgesinnten</div>
+        <div class="team-grid">
+          <div class="team-card" onclick="selectTeam('eco', this)">
+            <div class="team-card-icon">🌿</div>
+            <div class="team-card-name">Team Eco</div>
+            <div class="team-card-sub">Natur & Umwelt</div>
+          </div>
+          <div class="team-card" onclick="selectTeam('urban', this)">
+            <div class="team-card-icon">🏙️</div>
+            <div class="team-card-name">Team Urban</div>
+            <div class="team-card-sub">Stadtmenschen</div>
+          </div>
+          <div class="team-card" onclick="selectTeam('ocean', this)">
+            <div class="team-card-icon">🌊</div>
+            <div class="team-card-name">Team Ocean</div>
+            <div class="team-card-sub">Küsten & Gewässer</div>
+          </div>
+          <div class="team-card" onclick="selectTeam('forest', this)">
+            <div class="team-card-icon">🌲</div>
+            <div class="team-card-name">Team Forest</div>
+            <div class="team-card-sub">Wald & Berge</div>
+          </div>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn-back" onclick="goStep(2)">←</button>
+        <button class="btn-next" id="btn-team-next" onclick="goStep(4)" disabled>Weiter</button>
+      </div>
+    </div>
+
+    <!-- Step 4: Ready -->
+    <div class="step" id="step-4">
+      <div class="step-content">
+        <div class="avatar-preview" id="avatar-preview"></div>
+        <div class="step-title">Alles klar, <span id="ready-name">Held</span>!</div>
+        <div class="step-sub">Du bist bereit, die Welt sauberer zu machen</div>
+        <div class="features" style="margin-top:20px;">
+          <div class="feature">
+            <div class="feature-icon">📍</div>
+            <div class="feature-text" id="ready-city">–</div>
+          </div>
+          <div class="feature">
+            <div class="feature-icon" id="ready-team-icon">🌿</div>
+            <div class="feature-text" id="ready-team">Team Eco Warriors</div>
+          </div>
+          <div class="feature">
+            <div class="feature-icon">📅</div>
+            <div class="feature-text">Abfuhrkalender aktiv</div>
+          </div>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn-back" onclick="goStep(3)">←</button>
+        <button class="btn-start" onclick="finishOnboarding()">🎮 Spiel starten!</button>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const TEAMS = {
+      eco:    { name: 'Team Eco Warriors',   icon: '🌿' },
+      urban:  { name: 'Team Urban Cleanup',  icon: '🏙️' },
+      ocean:  { name: 'Team Ocean Guard',    icon: '🌊' },
+      forest: { name: 'Team Forest Keepers', icon: '🌲' },
+    };
+
+    let currentStep = 0;
+    let selectedTeam = null;
+    let resolvedCity = '';
+
+    const STEP_LABELS = ['Willkommen', 'Schritt 1 von 3', 'Schritt 2 von 3', 'Schritt 3 von 3', 'Fertig!'];
+    const STEP_PROGRESS = [0, 25, 50, 75, 100];
+
+    function goStep(n) {
+      // Validation
+      if (n === 2) {
+        const name = document.getElementById('input-name').value.trim();
+        if (!name) { showToast('Bitte einen Namen eingeben'); return; }
+      }
+      if (n === 3) {
+        const plz = document.getElementById('input-plz').value.trim();
+        if (!/^\d{5}$/.test(plz)) { showToast('Bitte gültige 5-stellige PLZ'); return; }
+      }
+      if (n === 4) {
+        if (!selectedTeam) { showToast('Bitte ein Team wählen'); return; }
+        // Prepare summary
+        const name = document.getElementById('input-name').value.trim();
+        document.getElementById('ready-name').textContent = name;
+        document.getElementById('ready-city').textContent = 'PLZ ' + document.getElementById('input-plz').value + (resolvedCity ? ' · ' + resolvedCity : '');
+        document.getElementById('ready-team').textContent = TEAMS[selectedTeam].name;
+        document.getElementById('ready-team-icon').textContent = TEAMS[selectedTeam].icon;
+        // Avatar preview
+        if (window.renderAvatarSVG && window.AvatarStore) {
+          document.getElementById('avatar-preview').innerHTML = window.renderAvatarSVG(window.AvatarStore.getEquipped());
+        }
+      }
+
+      document.getElementById('step-' + currentStep).classList.remove('active');
+      currentStep = n;
+      document.getElementById('step-' + n).classList.add('active');
+      document.getElementById('progress').style.width = STEP_PROGRESS[n] + '%';
+      document.getElementById('progress-label').textContent = STEP_LABELS[n];
+
+      // Auto-focus inputs
+      if (n === 1) setTimeout(() => document.getElementById('input-name').focus(), 300);
+      if (n === 2) setTimeout(() => document.getElementById('input-plz').focus(), 300);
+    }
+
+    // ── Name validation ──
+    document.getElementById('input-name').addEventListener('input', (e) => {
+      document.getElementById('btn-name-next').disabled = e.target.value.trim().length < 2;
+    });
+
+    // ── PLZ auto-city ──
+    document.getElementById('input-plz').addEventListener('input', (e) => {
+      const plz = e.target.value.trim();
+      const btn = document.getElementById('btn-plz-next');
+      const cityEl = document.getElementById('city-result');
+
+      if (/^\d{5}$/.test(plz)) {
+        btn.disabled = false;
+        fetch('https://api.zippopotam.us/de/' + plz)
+          .then(r => r.ok ? r.json() : null)
+          .then(data => {
+            if (data && data.places && data.places[0]) {
+              resolvedCity = data.places[0]['place name'];
+              document.getElementById('city-name').textContent = resolvedCity;
+              cityEl.classList.add('show');
+            }
+          })
+          .catch(() => {});
+      } else {
+        btn.disabled = true;
+        cityEl.classList.remove('show');
+        resolvedCity = '';
+      }
+    });
+
+    // ── Team selection ──
+    function selectTeam(id, el) {
+      selectedTeam = id;
+      document.querySelectorAll('.team-card').forEach(c => c.classList.remove('selected'));
+      el.classList.add('selected');
+      document.getElementById('btn-team-next').disabled = false;
+    }
+
+    // ── Finish ──
+    function finishOnboarding() {
+      const name = document.getElementById('input-name').value.trim();
+      const plz = document.getElementById('input-plz').value.trim();
+
+      // Save to localStorage
+      localStorage.setItem('tb_profile', JSON.stringify({
+        name: name,
+        motto: '',
+        city: resolvedCity,
+        team: selectedTeam
+      }));
+      localStorage.setItem('tb_username', name);
+      localStorage.setItem('tb_team', TEAMS[selectedTeam].name);
+      localStorage.setItem('tb_plz', plz);
+      localStorage.setItem('tb_onboarded', 'true');
+
+      // Redirect to main app
+      window.location.href = 'index.html';
+    }
+
+    // ── Toast ──
+    function showToast(msg) {
+      const old = document.querySelector('.toast');
+      if (old) old.remove();
+      const t = document.createElement('div');
+      t.className = 'toast';
+      t.textContent = msg;
+      document.body.appendChild(t);
+      setTimeout(() => { t.style.opacity = '0'; t.style.transition = 'opacity 0.3s'; setTimeout(() => t.remove(), 300); }, 2500);
+    }
+
+    // ── Already onboarded? Redirect ──
+    if (localStorage.getItem('tb_onboarded') === 'true') {
+      window.location.replace('index.html');
+    }
+  </script>
+</body>
+</html>
