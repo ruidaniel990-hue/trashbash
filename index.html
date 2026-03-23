@@ -714,6 +714,17 @@
       </div>
     </div>
 
+    <!-- Friends Section -->
+    <div class="section-title">Freunde</div>
+    <a href="friends.html" style="display:flex;align-items:center;gap:14px;background:linear-gradient(135deg,#1a0a2e 0%,#2d1060 100%);border:1px solid rgba(168,85,247,0.4);border-radius:18px;padding:16px 18px;text-decoration:none;color:var(--text);transition:all 0.2s;margin-bottom:8px;" onmouseover="this.style.borderColor='rgba(168,85,247,0.7)';this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='rgba(168,85,247,0.4)';this.style.transform=''">
+      <div style="font-size:2rem;">👥</div>
+      <div style="flex:1;">
+        <div style="font-size:0.95rem;font-weight:900;">Freunde einladen</div>
+        <div style="font-size:0.75rem;color:var(--muted);font-weight:700;">Teile deinen Code & vergleiche Stats</div>
+      </div>
+      <div style="color:rgba(168,85,247,0.7);font-size:1.2rem;">›</div>
+    </a>
+
   </main>
 
   <!-- Bottom Navigation -->
@@ -741,6 +752,11 @@
 
   <script src="avatar-renderer.js"></script>
   <script>
+    // ── Onboarding Redirect ──
+    if (localStorage.getItem('tb_onboarded') !== 'true') {
+      window.location.replace('welcome.html');
+    }
+
     // Install Prompt
     let deferredPrompt;
     window.addEventListener('beforeinstallprompt', (e) => {

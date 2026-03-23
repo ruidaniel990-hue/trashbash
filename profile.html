@@ -255,6 +255,21 @@
       </div>
     </div>
 
+    <!-- Friend Code -->
+    <div class="section">
+      <div class="section-title">Freundescode</div>
+      <div class="card">
+        <div class="field-row" style="cursor:pointer;" onclick="copyFriendCode()">
+          <div class="field-icon">👥</div>
+          <div class="field-body">
+            <div class="field-label">Dein Code (Tippen zum Kopieren)</div>
+            <div class="field-value cyan" id="friend-code-display" style="letter-spacing:3px;font-size:1.1rem;">----</div>
+          </div>
+          <div class="field-chevron">📋</div>
+        </div>
+      </div>
+    </div>
+
     <!-- Team -->
     <div class="section">
       <div class="section-title">Team wählen</div>
@@ -503,6 +518,18 @@
       }
     });
 
+    // ── Friend Code ──
+    function initFriendCode() {
+      const code = localStorage.getItem('tb_friend_code') || '----';
+      document.getElementById('friend-code-display').textContent = code;
+    }
+    function copyFriendCode() {
+      const code = localStorage.getItem('tb_friend_code');
+      if (code && navigator.clipboard) {
+        navigator.clipboard.writeText(code).then(() => showToast('📋 Freundescode kopiert!'));
+      }
+    }
+
     // ── Save ──
     function saveProfile() {
       const name  = document.getElementById('input-name').value.trim();
@@ -545,7 +572,7 @@
       setTimeout(() => { t.style.opacity='0'; t.style.transition='opacity 0.3s'; setTimeout(()=>t.remove(),300); }, 2500);
     }
 
-    window.addEventListener('load', load);
+    window.addEventListener('load', () => { load(); initFriendCode(); });
   </script>
 </body>
 </html>

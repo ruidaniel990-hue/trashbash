@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+  <meta name="theme-color" content="#0a0e1a">
+  <title>Trash Bash – Freunde</title>
+  <script src="avatar-renderer.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
+    * { margin:0; padding:0; box-sizing:border-box; }
+    :root {
+      --bg:#0a0e1a; --surface:#111827; --surface2:#1a2332; --border:#1e3a5f;
+      --primary:#0075be; --primary-glow:rgba(0,117,190,0.4);
+      --cyan:#00d4ff; --cyan-glow:rgba(0,212,255,0.3);
+      --yellow:#ffcc00; --yellow-glow:rgba(255,204,0,0.35);
+      --green:#00cc66; --green-glow:rgba(0,204,102,0.3);
+      --red:#ff4444; --text:#e8f4fd; --muted:#6b8ca4;
+    }
+    html,body { min-height:100%; font-family:'Nunito',-apple-system,sans-serif; background:var(--bg); color:var(--text); overflow-x:hidden; }
+    body::before {
+      content:''; position:fixed; inset:0;
+      background:radial-gradient(circle at 30% 20%,rgba(0,117,190,0.06) 0%,transparent 50%),
+                  radial-gradient(circle at 70% 80%,rgba(0,212,255,0.04) 0%,transparent 40%);
+      pointer-events:none; z-index:0;
+    }
+
+    header {
+      position:sticky; top:0; z-index:100;
+      background:rgba(10,14,26,0.92); backdrop-filter:blur(16px);
+      border-bottom:1px solid var(--border);
+      padding:max(0.9rem,env(safe-area-inset-top)) 1.2rem 0.9rem;
+      display:flex; align-items:center; gap:12px;
+    }
+    .back-btn {
+      width:36px; height:36px; background:var(--surface2); border:1px solid var(--border);
+      border-radius:50%; display:flex; align-items:center; justify-content:center;
+      cursor:pointer; color:var(--text); font-size:1rem; text-decoration:none; transition:all 0.2s;
+    }
+    .back-btn:hover { border-color:var(--cyan); }
+    header h1 { font-size:1.2rem; font-weight:900; color:var(--cyan); text-shadow:0 0 16px var(--cyan-glow); flex:1; }
+    .friend-count { font-size:0.8rem; font-weight:800; color:var(--muted); }
+
+    main { position:relative; z-index:1; padding:16px 16px 100px; max-width:480px; margin:0 auto; }
+
+    .section-title {
+      font-size:0.75rem; font-weight:800; text-transform:uppercase;
+      letter-spacing:1.2px; color:var(--muted); margin:24px 0 12px;
+    }
+    .section-title:first-child { margin-top:0; }
+
+    /* ── My Code Card ── */
+    .code-card {
+      background:linear-gradient(135deg,#0d1f35 0%,#0a1828 100%);
+      border:1px solid var(--border); border-radius:20px;
+      padding:20px; text-align:center; margin-bottom:20px;
+    }
+    .code-label { font-size:0.7rem; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:8px; }
+    .code-value {
+      font-size:1.8rem; font-weight:900; letter-spacing:4px;
+      color:var(--cyan); text-shadow:0 0 16px var(--cyan-glow);
+      margin-bottom:12px; font-family:'Nunito',monospace;
+    }
+    .code-actions { display:flex; gap:8px; justify-content:center; }
+    .code-btn {
+      background:var(--surface2); border:1px solid var(--border);
+      border-radius:12px; padding:8px 16px;
+      color:var(--text); font-family:'Nunito',sans-serif;
+      font-size:0.8rem; font-weight:800; cursor:pointer; transition:all 0.2s;
+      display:flex; align-items:center; gap:6px;
+    }
+    .code-btn:hover { border-color:var(--cyan); color:var(--cyan); }
+    .code-btn.primary {
+      background:linear-gradient(135deg,var(--primary),var(--cyan));
+      border:none; color:#fff;
+    }
+    .code-btn.primary:hover { transform:scale(1.04); box-shadow:0 0 12px var(--cyan-glow); }
+
+    /* ── Add Friend ── */
+    .add-card {
+      background:var(--surface); border:1px solid var(--border);
+      border-radius:18px; padding:16px; margin-bottom:20px;
+    }
+    .add-row { display:flex; gap:8px; }
+    .add-input {
+      flex:1; background:var(--surface2); border:1px solid var(--border);
+      border-radius:12px; padding:10px 14px;
+      color:var(--text); font-family:'Nunito',sans-serif;
+      font-size:1rem; font-weight:700; letter-spacing:2px;
+      outline:none; text-transform:uppercase; transition:all 0.2s;
+    }
+    .add-input::placeholder { color:var(--muted); letter-spacing:1px; font-size:0.85rem; text-transform:none; }
+    .add-input:focus { border-color:var(--cyan); box-shadow:0 0 10px var(--cyan-glow); }
+    .add-btn {
+      background:linear-gradient(135deg,var(--green),#00ee77);
+      border:none; border-radius:12px; padding:10px 18px;
+      color:#001a0a; font-family:'Nunito',sans-serif;
+      font-size:0.85rem; font-weight:900; cursor:pointer; transition:all 0.2s;
+      white-space:nowrap;
+    }
+    .add-btn:hover { transform:scale(1.04); }
+    .add-btn:active { transform:scale(0.97); }
+
+    /* ── Friend Card ── */
+    .friend-list { display:flex; flex-direction:column; gap:10px; }
+    .friend-card {
+      display:flex; align-items:center; gap:12px;
+      background:var(--surface); border:1px solid var(--border);
+      border-radius:18px; padding:14px 16px;
+      cursor:pointer; transition:all 0.2s;
+      animation:friendIn 0.3s ease-out;
+    }
+    @keyframes friendIn {
+      from { opacity:0; transform:translateY(10px); }
+      to { opacity:1; transform:translateY(0); }
+    }
+    .friend-card:hover { border-color:rgba(0,212,255,0.3); transform:translateX(4px); }
+    .friend-avatar {
+      width:48px; height:48px; border-radius:50%;
+      background:rgba(0,212,255,0.08); border:2px solid var(--border);
+      display:flex; align-items:center; justify-content:center;
+      overflow:hidden; flex-shrink:0; position:relative;
+    }
+    .friend-avatar svg { width:44px; height:44px; }
+    .online-dot {
+      position:absolute; bottom:1px; right:1px;
+      width:10px; height:10px; border-radius:50%;
+      border:2px solid var(--surface);
+    }
+    .online-dot.on { background:var(--green); box-shadow:0 0 6px var(--green); }
+    .online-dot.off { background:var(--muted); }
+    .friend-info { flex:1; min-width:0; }
+    .friend-name { font-size:0.9rem; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .friend-meta { font-size:0.7rem; font-weight:700; color:var(--muted); display:flex; gap:8px; align-items:center; }
+    .friend-level {
+      font-size:0.65rem; font-weight:900;
+      background:rgba(0,212,255,0.15); color:var(--cyan);
+      padding:2px 8px; border-radius:8px;
+    }
+    .friend-points { font-size:0.85rem; font-weight:900; color:var(--yellow); text-align:right; flex-shrink:0; }
+    .friend-chevron { color:var(--muted); font-size:0.8rem; flex-shrink:0; }
+
+    /* ── Empty State ── */
+    .empty-state {
+      text-align:center; padding:40px 20px; color:var(--muted);
+    }
+    .empty-icon { font-size:3rem; margin-bottom:12px; opacity:0.5; }
+    .empty-text { font-size:0.9rem; font-weight:700; }
+    .empty-sub { font-size:0.78rem; margin-top:6px; }
+
+    /* ── Compare Modal ── */
+    .compare-overlay {
+      position:fixed; inset:0; z-index:200;
+      background:rgba(10,14,26,0.95); backdrop-filter:blur(16px);
+      display:flex; align-items:center; justify-content:center;
+      padding:24px;
+    }
+    .compare-overlay.hidden { display:none; }
+    .compare-card {
+      background:var(--surface); border:1px solid rgba(0,212,255,0.3);
+      border-radius:24px; padding:24px 20px; width:100%; max-width:380px;
+      animation:compareIn 0.3s ease-out;
+    }
+    @keyframes compareIn {
+      from { opacity:0; transform:scale(0.9) translateY(20px); }
+      to { opacity:1; transform:scale(1) translateY(0); }
+    }
+    .compare-close {
+      float:right; width:32px; height:32px; border-radius:50%;
+      background:var(--surface2); border:1px solid var(--border);
+      color:var(--text); font-size:0.9rem; cursor:pointer;
+      display:flex; align-items:center; justify-content:center;
+    }
+    .compare-title { font-size:1rem; font-weight:900; color:var(--cyan); margin-bottom:20px; }
+    .compare-vs {
+      display:grid; grid-template-columns:1fr auto 1fr; gap:12px;
+      align-items:center; text-align:center; margin-bottom:20px;
+    }
+    .compare-player { display:flex; flex-direction:column; align-items:center; gap:6px; }
+    .compare-player-avatar {
+      width:60px; height:60px; border-radius:50%;
+      background:rgba(0,212,255,0.08); border:2px solid var(--border);
+      display:flex; align-items:center; justify-content:center; overflow:hidden;
+    }
+    .compare-player-avatar svg { width:56px; height:56px; }
+    .compare-player-name { font-size:0.8rem; font-weight:800; }
+    .compare-vs-text { font-size:1.4rem; font-weight:900; color:var(--muted); }
+    .compare-stats { display:flex; flex-direction:column; gap:8px; }
+    .compare-row {
+      display:grid; grid-template-columns:1fr auto 1fr; gap:8px; align-items:center;
+      padding:10px 12px; background:var(--surface2); border-radius:12px;
+    }
+    .compare-val { font-size:1rem; font-weight:900; text-align:center; }
+    .compare-val.win { color:var(--green); }
+    .compare-val.lose { color:var(--red); opacity:0.7; }
+    .compare-val.tie { color:var(--yellow); }
+    .compare-label { font-size:0.65rem; font-weight:800; color:var(--muted); text-transform:uppercase; text-align:center; }
+    .compare-challenge {
+      width:100%; margin-top:16px; padding:14px;
+      background:linear-gradient(135deg,var(--primary),var(--cyan));
+      border:none; border-radius:14px; color:#fff;
+      font-family:'Nunito',sans-serif; font-size:0.9rem; font-weight:900;
+      cursor:pointer; transition:all 0.2s;
+    }
+    .compare-challenge:hover { transform:translateY(-2px); box-shadow:0 4px 16px var(--cyan-glow); }
+    .compare-remove {
+      width:100%; margin-top:8px; padding:10px;
+      background:transparent; border:1px solid rgba(255,68,68,0.3);
+      border-radius:12px; color:var(--red);
+      font-family:'Nunito',sans-serif; font-size:0.75rem; font-weight:800;
+      cursor:pointer; transition:all 0.2s;
+    }
+    .compare-remove:hover { background:rgba(255,68,68,0.08); }
+
+    /* ── Bottom Nav ── */
+    .bottom-nav {
+      position:fixed; bottom:0; left:0; right:0; z-index:100;
+      background:rgba(10,14,26,0.95); backdrop-filter:blur(20px);
+      border-top:1px solid var(--border);
+      padding:10px 0 max(10px,env(safe-area-inset-bottom));
+      display:flex; justify-content:space-around; align-items:center;
+    }
+    .nav-item {
+      display:flex; flex-direction:column; align-items:center; gap:3px;
+      cursor:pointer; padding:4px 16px; border-radius:12px;
+      transition:all 0.2s; text-decoration:none; color:var(--muted);
+      font-size:0.65rem; font-weight:800; text-transform:uppercase; letter-spacing:0.5px;
+    }
+    .nav-item-icon { font-size:1.3rem; }
+    .nav-fab {
+      width:60px; height:60px;
+      background:linear-gradient(135deg,var(--primary) 0%,var(--cyan) 100%);
+      border-radius:50%; display:flex; align-items:center; justify-content:center;
+      font-size:1.6rem; box-shadow:0 0 20px var(--cyan-glow),0 4px 16px rgba(0,0,0,0.4);
+      cursor:pointer; transition:all 0.2s; border:3px solid rgba(0,212,255,0.3);
+      margin-top:-24px; flex-shrink:0;
+    }
+
+    /* Toast */
+    .toast {
+      position:fixed; bottom:90px; left:50%; transform:translateX(-50%);
+      background:rgba(0,212,255,0.15); backdrop-filter:blur(12px);
+      border:1px solid rgba(0,212,255,0.3); color:var(--cyan);
+      padding:12px 22px; border-radius:50px; font-size:0.9rem; font-weight:700;
+      animation:toastIn 0.3s ease-out; z-index:2000; white-space:nowrap;
+      box-shadow:0 0 20px var(--cyan-glow);
+    }
+    @keyframes toastIn {
+      from { opacity:0; transform:translateX(-50%) translateY(20px); }
+      to { opacity:1; transform:translateX(-50%) translateY(0); }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <a href="index.html" class="back-btn">←</a>
+    <h1>👥 Freunde</h1>
+    <div class="friend-count" id="friend-count">0 Freunde</div>
+  </header>
+
+  <main>
+
+    <!-- My Code -->
+    <div class="code-card">
+      <div class="code-label">Dein Freundescode</div>
+      <div class="code-value" id="my-code">----</div>
+      <div class="code-actions">
+        <button class="code-btn" onclick="copyCode()">📋 Kopieren</button>
+        <button class="code-btn primary" onclick="shareCode()">📤 Teilen</button>
+      </div>
+    </div>
+
+    <!-- Add Friend -->
+    <div class="section-title">Freund hinzufügen</div>
+    <div class="add-card">
+      <div class="add-row">
+        <input type="text" class="add-input" id="add-input" placeholder="Code eingeben" maxlength="9" autocomplete="off">
+        <button class="add-btn" onclick="addFriend()">Hinzufügen</button>
+      </div>
+    </div>
+
+    <!-- Friend List -->
+    <div class="section-title">Deine Freunde</div>
+    <div class="friend-list" id="friend-list">
+      <div class="empty-state" id="empty-state">
+        <div class="empty-icon">👥</div>
+        <div class="empty-text">Noch keine Freunde</div>
+        <div class="empty-sub">Teile deinen Code oder gib den Code eines Freundes ein!</div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Compare Modal -->
+  <div class="compare-overlay hidden" id="compare-overlay">
+    <div class="compare-card">
+      <button class="compare-close" onclick="closeCompare()">✕</button>
+      <div class="compare-title">Vergleich</div>
+      <div class="compare-vs">
+        <div class="compare-player">
+          <div class="compare-player-avatar" id="compare-my-avatar"></div>
+          <div class="compare-player-name" id="compare-my-name">Du</div>
+        </div>
+        <div class="compare-vs-text">VS</div>
+        <div class="compare-player">
+          <div class="compare-player-avatar" id="compare-friend-avatar"></div>
+          <div class="compare-player-name" id="compare-friend-name">Freund</div>
+        </div>
+      </div>
+      <div class="compare-stats" id="compare-stats"></div>
+      <button class="compare-challenge" onclick="showToast('⚔️ Herausforderung gesendet!')">⚔️ Herausfordern!</button>
+      <button class="compare-remove" id="compare-remove" onclick="removeFriend()">Freund entfernen</button>
+    </div>
+  </div>
+
+  <!-- Bottom Nav -->
+  <nav class="bottom-nav">
+    <a href="index.html" class="nav-item"><div class="nav-item-icon">🏠</div>Home</a>
+    <a href="app.html" class="nav-item"><div class="nav-item-icon">🗺️</div>Karte</a>
+    <div class="nav-fab" onclick="window.location.href='app.html'">🗑️</div>
+    <a href="minigame.html" class="nav-item"><div class="nav-item-icon">🎮</div>Spiele</a>
+    <a href="dashboard.html" class="nav-item"><div class="nav-item-icon">📊</div>Stats</a>
+  </nav>
+
+  <script>
+    const TEAMS = {eco:'🌿 Eco',urban:'🏙️ Urban',ocean:'🌊 Ocean',forest:'🌲 Forest'};
+    const TEAM_KEYS = Object.keys(TEAMS);
+    const DEMO_NAMES = ['MaxMüll','EcoLena','GreenTom','RecycleQueen','TrashKing','SauberSara','MüllMonster','BioBen','GlasGina','PapierPaul','PlastikPia','RestRico','SonderSven','CleanCarla','WasteWarrior'];
+
+    let friends = [];
+    let compareIndex = -1;
+
+    // ── Generate friend code ──
+    function generateCode() {
+      let code = localStorage.getItem('tb_friend_code');
+      if (!code) {
+        const name = localStorage.getItem('tb_username') || 'User';
+        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+        let raw = '';
+        const seed = name.split('').reduce((a,c) => a + c.charCodeAt(0), Date.now() % 10000);
+        let s = seed;
+        for (let i = 0; i < 8; i++) {
+          s = (s * 1103515245 + 12345) & 0x7fffffff;
+          raw += chars[s % chars.length];
+        }
+        code = raw.substring(0,4) + '-' + raw.substring(4,8);
+        localStorage.setItem('tb_friend_code', code);
+      }
+      return code;
+    }
+
+    // ── Generate deterministic demo friend from code ──
+    function generateDemoFriend(code) {
+      const clean = code.replace('-','').toUpperCase();
+      let hash = 0;
+      for (let i = 0; i < clean.length; i++) {
+        hash = ((hash << 5) - hash) + clean.charCodeAt(i);
+        hash |= 0;
+      }
+      hash = Math.abs(hash);
+
+      const name = DEMO_NAMES[hash % DEMO_NAMES.length];
+      const level = (hash % 10) + 1;
+      const team = TEAM_KEYS[hash % TEAM_KEYS.length];
+      const points = level * 500 + (hash % 300);
+      const kg = (points / 10).toFixed(1);
+      const online = hash % 3 !== 0;
+      const skinIdx = hash % 5;
+      const skins = ['skin_warm','skin_light','skin_medium','skin_dark','skin_green'];
+      const shirtIdx = hash % 5;
+      const shirts = ['shirt_default','shirt_red','shirt_eco','shirt_lab','shirt_orange'];
+
+      return {
+        code, name, level, team, points, kg, online,
+        equipped: { skin:skins[skinIdx], hat:'hat_none', shirt:shirts[shirtIdx], pants:'pants_default', shoes:'shoes_default', accessory:'acc_none' },
+        addedAt: new Date().toISOString()
+      };
+    }
+
+    // ── Load friends ──
+    function loadFriends() {
+      friends = JSON.parse(localStorage.getItem('tb_friends') || '[]');
+    }
+    function saveFriends() {
+      localStorage.setItem('tb_friends', JSON.stringify(friends));
+    }
+
+    // ── Render friend list ──
+    function renderFriends() {
+      const list = document.getElementById('friend-list');
+      const empty = document.getElementById('empty-state');
+      document.getElementById('friend-count').textContent = friends.length + ' Freund' + (friends.length !== 1 ? 'e' : '');
+
+      if (friends.length === 0) {
+        list.innerHTML = '';
+        list.appendChild(empty);
+        empty.style.display = 'block';
+        return;
+      }
+
+      empty.style.display = 'none';
+      // Sort by level desc
+      const sorted = [...friends].sort((a,b) => b.level - a.level);
+
+      list.innerHTML = sorted.map((f, i) => {
+        const avatarSvg = window.renderAvatarSVG ? window.renderAvatarSVG(f.equipped) : '👤';
+        const teamLabel = TEAMS[f.team] || f.team;
+        const origIdx = friends.indexOf(f);
+        return `<div class="friend-card" onclick="showCompare(${origIdx})">
+          <div class="friend-avatar">
+            ${avatarSvg}
+            <div class="online-dot ${f.online ? 'on' : 'off'}"></div>
+          </div>
+          <div class="friend-info">
+            <div class="friend-name">${f.name}</div>
+            <div class="friend-meta">
+              <span class="friend-level">Lv.${f.level}</span>
+              <span>${teamLabel}</span>
+            </div>
+          </div>
+          <div class="friend-points">${f.points} Pts</div>
+          <div class="friend-chevron">›</div>
+        </div>`;
+      }).join('');
+    }
+
+    // ── Add friend ──
+    function addFriend() {
+      let code = document.getElementById('add-input').value.trim().toUpperCase();
+      if (code.length === 8 && !code.includes('-')) code = code.substring(0,4) + '-' + code.substring(4);
+      if (!/^[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(code)) {
+        showToast('Ungültiger Code (Format: XXXX-XXXX)');
+        return;
+      }
+      const myCode = localStorage.getItem('tb_friend_code');
+      if (code === myCode) {
+        showToast('Das ist dein eigener Code!');
+        return;
+      }
+      if (friends.some(f => f.code === code)) {
+        showToast('Freund bereits hinzugefügt!');
+        return;
+      }
+
+      const friend = generateDemoFriend(code);
+      friends.push(friend);
+      saveFriends();
+      renderFriends();
+      document.getElementById('add-input').value = '';
+      showToast('✅ ' + friend.name + ' hinzugefügt!');
+    }
+
+    // ── Compare ──
+    function showCompare(idx) {
+      compareIndex = idx;
+      const f = friends[idx];
+      const overlay = document.getElementById('compare-overlay');
+
+      // My data
+      const myName = localStorage.getItem('tb_username') || 'Du';
+      const myCoins = window.AvatarStore ? window.AvatarStore.getCoins() : parseInt(localStorage.getItem('tb_coins') || '0');
+      const myLevel = Math.max(1, Math.floor(myCoins / 500) + 1);
+      const myPoints = myCoins * 2;
+      const myKg = (myPoints / 10).toFixed(1);
+
+      document.getElementById('compare-my-name').textContent = myName;
+      document.getElementById('compare-friend-name').textContent = f.name;
+
+      if (window.renderAvatarSVG) {
+        const myEq = window.AvatarStore ? window.AvatarStore.getEquipped() : {};
+        document.getElementById('compare-my-avatar').innerHTML = window.renderAvatarSVG(myEq);
+        document.getElementById('compare-friend-avatar').innerHTML = window.renderAvatarSVG(f.equipped);
+      }
+
+      // Stats comparison
+      const stats = [
+        { label:'Level', mine:myLevel, theirs:f.level },
+        { label:'Punkte', mine:myPoints, theirs:f.points },
+        { label:'kg Gesammelt', mine:parseFloat(myKg), theirs:parseFloat(f.kg) },
+      ];
+
+      document.getElementById('compare-stats').innerHTML = stats.map(s => {
+        const myCls = s.mine > s.theirs ? 'win' : s.mine < s.theirs ? 'lose' : 'tie';
+        const theirCls = s.theirs > s.mine ? 'win' : s.theirs < s.mine ? 'lose' : 'tie';
+        return `<div class="compare-row">
+          <div class="compare-val ${myCls}">${s.mine}</div>
+          <div class="compare-label">${s.label}</div>
+          <div class="compare-val ${theirCls}">${s.theirs}</div>
+        </div>`;
+      }).join('');
+
+      overlay.classList.remove('hidden');
+    }
+
+    function closeCompare() {
+      document.getElementById('compare-overlay').classList.add('hidden');
+      compareIndex = -1;
+    }
+
+    function removeFriend() {
+      if (compareIndex < 0) return;
+      const name = friends[compareIndex].name;
+      friends.splice(compareIndex, 1);
+      saveFriends();
+      renderFriends();
+      closeCompare();
+      showToast('👋 ' + name + ' entfernt');
+    }
+
+    // ── Copy / Share ──
+    function copyCode() {
+      const code = document.getElementById('my-code').textContent;
+      navigator.clipboard.writeText(code).then(() => showToast('📋 Code kopiert!')).catch(() => showToast(code));
+    }
+    function shareCode() {
+      const code = document.getElementById('my-code').textContent;
+      if (navigator.share) {
+        navigator.share({ title:'Trash Bash', text:'Füge mich als Freund hinzu! Code: ' + code, url:window.location.origin });
+      } else {
+        copyCode();
+      }
+    }
+
+    // ── Toast ──
+    function showToast(msg) {
+      const old = document.querySelector('.toast'); if (old) old.remove();
+      const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg;
+      document.body.appendChild(t);
+      setTimeout(() => { t.style.opacity='0'; t.style.transition='opacity 0.3s'; setTimeout(()=>t.remove(),300); },2500);
+    }
+
+    // ── Init ──
+    window.addEventListener('load', () => {
+      document.getElementById('my-code').textContent = generateCode();
+      loadFriends();
+      renderFriends();
+
+      document.getElementById('add-input').addEventListener('keydown', e => {
+        if (e.key === 'Enter') addFriend();
+      });
+    });
+  </script>
+</body>
+</html>
