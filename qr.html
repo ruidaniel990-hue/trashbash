@@ -203,7 +203,7 @@
         const data = await res.json();
         url = data.url;
       } catch {
-        url = `http://${window.location.hostname}:3000`;
+        url = `https://trashbash-api.onrender.com`;
       }
 
       document.getElementById('url-display').textContent = url;

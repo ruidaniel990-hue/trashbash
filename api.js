@@ -2,7 +2,7 @@
 // Verbindet Frontend mit Backend
 
 class TrashbashAPI {
-  constructor(baseURL = 'http://localhost:3000') {
+  constructor(baseURL = 'https://trashbash-api.onrender.com') {
     this.baseURL = baseURL;
     this.token = localStorage.getItem('trashbash_token') || null;
   }
