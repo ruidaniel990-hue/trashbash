@@ -1,0 +1,187 @@
+// Trash bash – Prisma Schema
+// Datenbank: PostgreSQL + PostGIS (via Supabase)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── USERS ───────────────────────────────────────────────────────────────────
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  username     String   @unique
+  passwordHash String   @map("password_hash")
+  avatarUrl    String?  @map("avatar_url")
+  level        Int      @default(1)
+  totalPoints  Int      @default(0)  @map("total_points")
+  totalKg      Float    @default(0)  @map("total_kg")
+  sessionCount Int      @default(0)  @map("session_count")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt    @map("updated_at")
+
+  friendCode   String?  @unique @map("friend_code")
+
+  sessions     Session[]
+  trashPhotos  TrashPhoto[]
+  hotspots     Hotspot[]
+  weighCheckins WeighCheckin[]
+  badges       UserBadge[]
+  friendships  Friendship[] @relation("userFriends")
+  friendOf     Friendship[] @relation("friendOf")
+
+  @@map("users")
+  @@index([email])
+  @@index([username])
+}
+
+// ─── SESSIONS ────────────────────────────────────────────────────────────────
+
+model Session {
+  id           String    @id @default(uuid())
+  userId       String    @map("user_id")
+  routeGeoJson Json?     @map("route_geojson")
+  distanceKm   Float     @default(0) @map("distance_km")
+  durationSec  Int       @default(0) @map("duration_sec")
+  pointsEarned Int       @default(0) @map("points_earned")
+  kgCollected  Float     @default(0) @map("kg_collected")
+  startedAt    DateTime  @map("started_at")
+  endedAt      DateTime? @map("ended_at")
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trashPhotos TrashPhoto[]
+
+  @@map("sessions")
+  @@index([userId])
+  @@index([startedAt])
+}
+
+// ─── TRASH PHOTOS ────────────────────────────────────────────────────────────
+
+model TrashPhoto {
+  id        String   @id @default(uuid())
+  sessionId String?  @map("session_id")
+  userId    String   @map("user_id")
+  photoUrl  String   @map("photo_url")
+  trashType String   @map("trash_type") // "plastic" | "glass" | "bulky" | "organic" | "mixed"
+  lat       Float
+  lng       Float
+  points    Int      @default(10)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  session Session? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  @@map("trash_photos")
+  @@index([userId])
+  @@index([sessionId])
+}
+
+// ─── HOTSPOTS ────────────────────────────────────────────────────────────────
+
+model Hotspot {
+  id         String   @id @default(uuid())
+  reportedBy String   @map("reported_by")
+  lat        Float
+  lng        Float
+  severity   String   // "high" | "medium" | "low"
+  trashTypes String[] @map("trash_types")
+  photoUrl   String?  @map("photo_url")
+  resolved   Boolean  @default(false)
+  upvotes    Int      @default(0)
+  createdAt  DateTime @default(now()) @map("created_at")
+  resolvedAt DateTime? @map("resolved_at")
+
+  reporter User @relation(fields: [reportedBy], references: [id], onDelete: Cascade)
+
+  @@map("hotspots")
+  @@index([reportedBy])
+  @@index([resolved])
+  @@index([severity])
+}
+
+// ─── WEIGH STATIONS ──────────────────────────────────────────────────────────
+
+model WeighStation {
+  id       String   @id @default(uuid())
+  name     String
+  lat      Float
+  lng      Float
+  address  String?
+  openHour Int      @default(8)  @map("open_hour")
+  closeHour Int     @default(18) @map("close_hour")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  checkins WeighCheckin[]
+
+  @@map("weigh_stations")
+  @@index([lat, lng])
+}
+
+// ─── WEIGH CHECKINS (Gewichtsmessung) ─────────────────────────────────────────
+
+model WeighCheckin {
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
+  stationId   String   @map("station_id")
+  weightKg    Float    @map("weight_kg")
+  points      Int      @default(20)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  user    User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  station WeighStation @relation(fields: [stationId], references: [id], onDelete: Cascade)
+
+  @@map("weigh_checkins")
+  @@index([userId])
+  @@index([stationId])
+}
+
+// ─── BADGES (Achievements) ───────────────────────────────────────────────────
+
+model Badge {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  icon        String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  userBadges UserBadge[]
+
+  @@map("badges")
+}
+
+// ─── FRIENDSHIPS ────────────────────────────────────────────────────────────
+
+model Friendship {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  friendId  String   @map("friend_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user   User @relation("userFriends", fields: [userId], references: [id], onDelete: Cascade)
+  friend User @relation("friendOf", fields: [friendId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, friendId])
+  @@map("friendships")
+  @@index([userId])
+  @@index([friendId])
+}
+
+model UserBadge {
+  id       String   @id @default(uuid())
+  userId   String   @map("user_id")
+  badgeId  String   @map("badge_id")
+  earnedAt DateTime @default(now()) @map("earned_at")
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badge Badge @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, badgeId])
+  @@map("user_badges")
+  @@index([userId])
+}
