@@ -695,18 +695,9 @@
 
     demoHotspots.forEach(addHotspotToMap);
 
-    // ── Disposal / Entsorgungsstationen ──
-    const disposalStations = [
-      { lat: 51.1665, lng: 10.449, name: 'Mülleimer Parkeingang',    type: 'muelleimer', icon: '🗑️', desc: 'Öffentlicher Mülleimer' },
-      { lat: 51.1680, lng: 10.453, name: 'Mülleimer Bushaltestelle', type: 'muelleimer', icon: '🗑️', desc: 'Öffentlicher Mülleimer' },
-      { lat: 51.1640, lng: 10.442, name: 'Mülleimer Marktplatz',     type: 'muelleimer', icon: '🗑️', desc: 'Öffentlicher Mülleimer' },
-      { lat: 51.1695, lng: 10.460, name: 'Mülleimer Spielplatz',     type: 'muelleimer', icon: '🗑️', desc: 'Öffentlicher Mülleimer' },
-      { lat: 51.1650, lng: 10.455, name: 'Glascontainer Südstraße',   type: 'glas',       icon: '🫙', desc: 'Weiß · Braun · Grün' },
-      { lat: 51.1710, lng: 10.448, name: 'Glascontainer Nordplatz',   type: 'glas',       icon: '🫙', desc: 'Weiß · Braun · Grün' },
-      { lat: 51.1620, lng: 10.465, name: 'Wertstoffhof Ost',         type: 'wertstoff',  icon: '♻️', desc: 'Mo–Fr 8–17, Sa 9–13 Uhr' },
-      { lat: 51.1590, lng: 10.438, name: 'Altkleider Hauptstraße',   type: 'kleider',    icon: '👕', desc: 'Altkleider & Schuhe' },
-      { lat: 51.1630, lng: 10.470, name: 'Elektroschrott-Sammlung',  type: 'elektro',    icon: '🔌', desc: 'Kleingeräte & Batterien' },
-    ];
+    // ── Disposal / Entsorgungsstationen (OpenStreetMap Overpass API) ──
+    const disposalLayer = L.layerGroup().addTo(map);
+    let lastDisposalBounds = null;
 
     function disposalIcon(type, icon) {
       return L.divIcon({
@@ -716,14 +707,50 @@
       });
     }
 
-    disposalStations.forEach(s => {
-      L.marker([s.lat, s.lng], { icon: disposalIcon(s.type, s.icon) }).addTo(map)
-        .bindPopup(`
-          <div class="popup-category ${s.type}">${s.icon} ${s.type === 'muelleimer' ? 'Mülleimer' : s.type === 'glas' ? 'Glascontainer' : s.type === 'wertstoff' ? 'Wertstoffhof' : s.type === 'kleider' ? 'Altkleider' : 'Elektroschrott'}</div>
-          <div class="popup-title">${s.name}</div>
-          <div class="popup-sub">${s.desc}</div>
-        `, { maxWidth: 220 });
-    });
+    function classifyAmenity(tags) {
+      if (tags.amenity === 'waste_basket') return { type: 'muelleimer', icon: '🗑️', label: 'Mülleimer', desc: 'Öffentlicher Mülleimer' };
+      if (tags.amenity === 'recycling') {
+        const types = [];
+        if (tags['recycling:glass'] === 'yes') types.push('Glas');
+        if (tags['recycling:paper'] === 'yes') types.push('Papier');
+        if (tags['recycling:clothes'] === 'yes') return { type: 'kleider', icon: '👕', label: 'Altkleider', desc: 'Altkleider & Schuhe' };
+        if (tags['recycling:electrical_appliances'] === 'yes' || tags['recycling:batteries'] === 'yes') return { type: 'elektro', icon: '🔌', label: 'Elektroschrott', desc: 'Kleingeräte & Batterien' };
+        if (types.includes('Glas')) return { type: 'glas', icon: '🫙', label: 'Glascontainer', desc: types.join(' · ') || 'Recycling' };
+        return { type: 'wertstoff', icon: '♻️', label: 'Wertstoffcontainer', desc: types.join(' · ') || 'Recycling' };
+      }
+      if (tags.amenity === 'waste_disposal') return { type: 'wertstoff', icon: '♻️', label: 'Wertstoffhof', desc: tags.opening_hours || 'Entsorgungsstelle' };
+      return { type: 'muelleimer', icon: '🗑️', label: 'Entsorgung', desc: tags.description || '' };
+    }
+
+    async function loadDisposalStations(bounds) {
+      const b = bounds || map.getBounds();
+      if (lastDisposalBounds && lastDisposalBounds.contains(b)) return;
+      lastDisposalBounds = b.pad(0.5);
+
+      const bbox = `${b.getSouth()},${b.getWest()},${b.getNorth()},${b.getEast()}`;
+      const query = `[out:json][timeout:10];(node["amenity"="waste_basket"](${bbox});node["amenity"="recycling"](${bbox});node["amenity"="waste_disposal"](${bbox}););out body;`;
+
+      try {
+        const res = await fetch(`https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`);
+        const data = await res.json();
+        disposalLayer.clearLayers();
+
+        data.elements.forEach(el => {
+          const info = classifyAmenity(el.tags || {});
+          const name = el.tags?.name || el.tags?.description || info.label;
+          L.marker([el.lat, el.lon], { icon: disposalIcon(info.type, info.icon) })
+            .bindPopup(`
+              <div class="popup-category ${info.type}">${info.icon} ${info.label}</div>
+              <div class="popup-title">${name}</div>
+              <div class="popup-sub">${info.desc}</div>
+            `, { maxWidth: 220 })
+            .addTo(disposalLayer);
+        });
+      } catch (e) { console.warn('Overpass API error:', e); }
+    }
+
+    map.on('moveend', () => loadDisposalStations());
+    loadDisposalStations();
 
     // ── GPS ──
     function startGPS() {
