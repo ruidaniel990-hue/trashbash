@@ -1,7 +1,7 @@
 // Trash bash Service Worker - Offline Support & Caching
-const CACHE_NAME = 'trashbash-v1.0.0';
-const RUNTIME_CACHE = 'trashbash-runtime-v1.0.0';
-const API_CACHE = 'trashbash-api-v1.0.0';
+const CACHE_NAME = 'trashbash-v2.0.0';
+const RUNTIME_CACHE = 'trashbash-runtime-v2.0.0';
+const API_CACHE = 'trashbash-api-v2.0.0';
 
 const STATIC_ASSETS = [
   '/',
