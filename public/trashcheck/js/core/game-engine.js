@@ -318,9 +318,6 @@ function endGame() {
   clearTimeout(state.fallTimer);
   if (state.itemEl && state.itemEl.parentNode) state.itemEl.remove();
 
-  // DJ Scratch effect
-  playScratchEffect();
-
   // Calculate coins
   const coinsEarned = earnCoins(state.score);
 
@@ -341,12 +338,11 @@ function endGame() {
     hotspot: state.currentHotspot,
   };
 
-  // Overlay comes while scratch is still playing (400ms delay)
-  setTimeout(() => {
-    showDeliverySequence(results, () => {
-      showResultsScreen(results);
-    });
-  }, 400);
+  // Delivery sequence, then scratch plays ON the results screen
+  showDeliverySequence(results, () => {
+    playScratchEffect();  // Scratch starts as results screen appears
+    showResultsScreen(results);
+  });
 }
 
 // ── Go to Hub (called from results screen) ──

@@ -46,7 +46,7 @@ export function playScratchEffect() {
   const ctx = getCtx();
   if (ctx.state === 'suspended') ctx.resume();
 
-  const duration = 1.2;
+  const duration = 1.0;
   const now = ctx.currentTime;
 
   // Master gain for the scratch
