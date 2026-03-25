@@ -141,12 +141,17 @@ export function startLevel() {
   setTimeout(() => spawnItem(), CONFIG.INITIAL_SPAWN_DELAY);
 }
 
-// ── Get spawn X position (center for level 1, varied for level 2+) ──
+// ── Get spawn X position ──
+// Level 1-5: always center. Level 6+: gradually more side spawns.
 function getSpawnXPercent() {
-  if (state.level <= 1) return 50; // Always center for level 1
-  // Level 2+: random position (left, center, or right)
-  const positions = [25, 50, 75];
-  return positions[Math.floor(Math.random() * positions.length)];
+  if (state.level <= 5) return 50;
+
+  // Side-spawn chance increases per level: 20%, 35%, 50%, 60% cap
+  const sideChance = Math.min(0.6, 0.2 + (state.level - 6) * 0.15);
+  if (Math.random() < sideChance) {
+    return Math.random() < 0.5 ? 25 : 75; // left or right
+  }
+  return 50;
 }
 
 // ── Spawn Item ──
