@@ -142,13 +142,13 @@ export function startLevel() {
 }
 
 // ── Get spawn X position ──
-// Level 1-5: always center. Level 6+: very gradually more side spawns.
+// Level 1-14: always center. Level 15+: very slow ramp to 50% sides at L70.
 function getSpawnXPercent() {
-  if (state.level <= 5) return 50;
+  if (state.level <= 14) return 50;
 
-  // Gentle ramp: 5% per level, cap at 50%
-  // L6=5%, L7=10%, L8=15%, L9=20%, L10=25% ... L15=50% cap
-  const sideChance = Math.min(0.5, (state.level - 5) * 0.05);
+  // Ultra-gentle ramp: ~0.9% per level, cap at 50%
+  // L15≈1%, L20≈5%, L30≈14%, L40≈23%, L50≈32%, L70≈50%
+  const sideChance = Math.min(0.5, (state.level - 14) * 0.009);
   if (Math.random() < sideChance) {
     return Math.random() < 0.5 ? 25 : 75;
   }
