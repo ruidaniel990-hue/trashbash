@@ -17,7 +17,6 @@ import { getLevelFallTime, getLevelSpawnDelay, getItemsToComplete, hotspotChange
 import { setCurrentHotspot, getHotspotBinPreview } from '../hotspot/hotspot-manager.js';
 import { showDeliverySequence, showResultsScreen, showHub } from '../base/hub-manager.js';
 import { renderShop } from '../shop/shop-screen.js';
-import { playScratchEffect } from '../effects/audio-manager.js';
 
 // ── Render bins at bottom ──
 function renderBins() {
@@ -338,12 +337,9 @@ function endGame() {
     hotspot: state.currentHotspot,
   };
 
-  // Delivery sequence, then scratch plays BEFORE results screen
+  // Delivery sequence, then results screen
   showDeliverySequence(results, () => {
-    playScratchEffect();  // Scratch plays (0.7s)
-    setTimeout(() => {
-      showResultsScreen(results);  // Results AFTER scratch finishes
-    }, 750);
+    showResultsScreen(results);
   });
 }
 
