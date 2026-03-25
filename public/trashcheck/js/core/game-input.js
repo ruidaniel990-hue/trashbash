@@ -79,11 +79,8 @@ function handleMouseUp(e) {
 
 function moveItemWithSwipe(dx, dy) {
   if (!state.itemEl) return;
-  // Calculate horizontal offset as a percentage of screen width
-  // Clamp to prevent too much movement
-  const maxOffsetPercent = 40;
-  const offsetPercent = Math.max(-maxOffsetPercent, Math.min(maxOffsetPercent, (dx / window.innerWidth) * 100));
-  state.itemEl.style.transform = `translateX(${offsetPercent}%)`;
+  // Item follows finger 1:1 in pixels — smooth and responsive
+  state.itemEl.style.transform = `translateX(${dx}px)`;
 
   // Vertical movement for downward swipe
   if (dy > 30 && Math.abs(dx) < CONFIG.SWIPE_THRESHOLD) {
