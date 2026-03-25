@@ -17,6 +17,7 @@ import { getLevelFallTime, getLevelSpawnDelay, getItemsToComplete, hotspotChange
 import { setCurrentHotspot, getHotspotBinPreview } from '../hotspot/hotspot-manager.js';
 import { showDeliverySequence, showResultsScreen, showHub } from '../base/hub-manager.js';
 import { renderShop } from '../shop/shop-screen.js';
+import { playScratchEffect } from '../effects/audio-manager.js';
 
 // ── Render bins at bottom ──
 function renderBins() {
@@ -317,6 +318,9 @@ function endGame() {
   clearTimeout(state.fallTimer);
   if (state.itemEl && state.itemEl.parentNode) state.itemEl.remove();
 
+  // DJ Scratch effect
+  playScratchEffect();
+
   // Calculate coins
   const coinsEarned = earnCoins(state.score);
 
@@ -337,10 +341,12 @@ function endGame() {
     hotspot: state.currentHotspot,
   };
 
-  // Show delivery -> results flow
-  showDeliverySequence(results, () => {
-    showResultsScreen(results);
-  });
+  // Overlay comes while scratch is still playing (400ms delay)
+  setTimeout(() => {
+    showDeliverySequence(results, () => {
+      showResultsScreen(results);
+    });
+  }, 400);
 }
 
 // ── Go to Hub (called from results screen) ──
