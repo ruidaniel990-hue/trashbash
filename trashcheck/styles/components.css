@@ -1,0 +1,45 @@
+/* ══════ BUTTONS ══════ */
+.start-btn {
+  width: 100%;
+  max-width: 280px;
+  padding: 18px;
+  background: linear-gradient(135deg, #00aa55, var(--green));
+  border: none;
+  border-radius: 20px;
+  color: #001a0a;
+  font-family: 'Nunito', sans-serif;
+  font-weight: 900;
+  font-size: 1.1rem;
+  cursor: pointer;
+  box-shadow: 0 6px 24px var(--green-glow);
+}
+.start-btn:active { transform: scale(0.96); }
+
+.btn-play-again {
+  background: linear-gradient(135deg, #00aa55, var(--green));
+  border: none;
+  border-radius: 16px;
+  color: #001a0a;
+  font-family: 'Nunito', sans-serif;
+  font-weight: 900;
+  font-size: 0.9rem;
+  padding: 14px;
+  cursor: pointer;
+  box-shadow: 0 4px 16px var(--green-glow);
+}
+
+.btn-home {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  color: var(--text);
+  font-family: 'Nunito', sans-serif;
+  font-weight: 800;
+  font-size: 0.9rem;
+  padding: 14px;
+  cursor: pointer;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}

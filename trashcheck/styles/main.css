@@ -1,0 +1,41 @@
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800;900&display=swap');
+
+/* ── Reset & Variables ── */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg: #0a0e1a;
+  --surface: #111827;
+  --surface2: #1a2332;
+  --border: #1e3a5f;
+  --cyan: #00d4ff;
+  --cyan-glow: rgba(0, 212, 255, 0.3);
+  --yellow: #ffcc00;
+  --yellow-glow: rgba(255, 204, 0, 0.35);
+  --green: #00cc66;
+  --green-glow: rgba(0, 204, 102, 0.3);
+  --red: #ff4444;
+  --text: #e8f4fd;
+  --muted: #6b8ca4;
+}
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+  font-family: 'Nunito', -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  touch-action: none;
+}
+
+/* ── Screen System ── */
+.screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.screen.hidden { display: none; }
