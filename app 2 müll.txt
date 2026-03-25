@@ -1,0 +1,4 @@
+npm install
+cp .env.example .env   # Supabase-Zugangsdaten eintragen
+npm run db:migrate
+npm run dev

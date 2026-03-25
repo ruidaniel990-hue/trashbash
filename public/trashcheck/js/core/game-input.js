@@ -79,11 +79,16 @@ function handleMouseUp(e) {
 
 function moveItemWithSwipe(dx, dy) {
   if (!state.itemEl) return;
-  // Horizontal movement for left/right, downward pull for center
-  const pct = 50 + (dx / window.innerWidth) * CONFIG.SWIPE_VISUAL_MULTIPLIER;
-  state.itemEl.style.left = pct + '%';
+  // Calculate horizontal offset as a percentage of screen width
+  // Clamp to prevent too much movement
+  const maxOffsetPercent = 40;
+  const offsetPercent = Math.max(-maxOffsetPercent, Math.min(maxOffsetPercent, (dx / window.innerWidth) * 100));
+  state.itemEl.style.transform = `translateX(${offsetPercent}%)`;
+
+  // Vertical movement for downward swipe
   if (dy > 30 && Math.abs(dx) < CONFIG.SWIPE_THRESHOLD) {
-    state.itemEl.style.top = Math.min(18 + (dy / window.innerHeight) * 40, 50) + '%';
+    const yOffset = Math.min(18 + (dy / window.innerHeight) * 40, 50);
+    state.itemEl.style.top = yOffset + '%';
   }
 }
 

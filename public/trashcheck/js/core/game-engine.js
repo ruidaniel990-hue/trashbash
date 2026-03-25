@@ -141,6 +141,14 @@ export function startLevel() {
   setTimeout(() => spawnItem(), CONFIG.INITIAL_SPAWN_DELAY);
 }
 
+// ── Get spawn X position (center for level 1, varied for level 2+) ──
+function getSpawnXPercent() {
+  if (state.level <= 1) return 50; // Always center for level 1
+  // Level 2+: random position (left, center, or right)
+  const positions = [25, 50, 75];
+  return positions[Math.floor(Math.random() * positions.length)];
+}
+
 // ── Spawn Item ──
 function spawnItem() {
   if (!state.gameActive) return;
@@ -155,12 +163,12 @@ function spawnItem() {
   const zone = document.getElementById('fall-zone');
   if (!zone) return;
 
-  // Create item element
+  // Create item element with dynamic spawn position
+  const spawnX = getSpawnXPercent();
   const el = document.createElement('div');
   el.className = 'swipe-item spawn';
-  el.style.left = '50%';
+  el.style.left = spawnX + '%';
   el.style.top = '18%';
-  el.style.transform = 'translateX(-50%)';
   el.innerHTML = `<div class="item-emoji">${item.emoji}</div><div class="item-name">${item.name}</div>`;
   zone.appendChild(el);
   state.itemEl = el;
