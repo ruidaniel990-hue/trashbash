@@ -338,10 +338,12 @@ function endGame() {
     hotspot: state.currentHotspot,
   };
 
-  // Delivery sequence, then scratch plays ON the results screen
+  // Delivery sequence, then scratch plays BEFORE results screen
   showDeliverySequence(results, () => {
-    playScratchEffect();  // Scratch starts as results screen appears
-    showResultsScreen(results);
+    playScratchEffect();  // Scratch plays (0.7s)
+    setTimeout(() => {
+      showResultsScreen(results);  // Results AFTER scratch finishes
+    }, 750);
   });
 }
 
