@@ -3,10 +3,6 @@
 
 let muted = false;
 let audioCtx = null;
-let musicSource = null;
-let musicGain = null;
-let musicBuffer = null;
-let musicPlaying = false;
 
 function getCtx() {
   if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -25,11 +21,7 @@ export function playMusic(track) {
 }
 
 export function stopMusic() {
-  if (musicSource) {
-    try { musicSource.stop(); } catch (e) {}
-    musicSource = null;
-  }
-  musicPlaying = false;
+  // TODO: implement stop
 }
 
 export function toggleMute() {
@@ -38,77 +30,75 @@ export function toggleMute() {
 }
 
 // ── DJ Scratch Effect ──
-// Synthetic vinyl-stop sound: noise burst with falling pitch + wobble
-// Works standalone (no music needed)
+// Synthetic vinyl-stop: 0.7s, hard cutoff, fully self-cleaning
 export function playScratchEffect() {
   if (muted) return;
 
   const ctx = getCtx();
   if (ctx.state === 'suspended') ctx.resume();
 
-  const duration = 1.0;
+  const dur = 0.7;
   const now = ctx.currentTime;
+  const end = now + dur;
 
-  // Master gain for the scratch
+  // Master gain — fades to silence
   const master = ctx.createGain();
-  master.gain.setValueAtTime(0.35, now);
-  master.gain.linearRampToValueAtTime(0.0, now + duration);
+  master.gain.setValueAtTime(0.4, now);
+  master.gain.linearRampToValueAtTime(0.0, end);
   master.connect(ctx.destination);
 
-  // Layer 1: Filtered noise (vinyl crackle/hiss)
-  const noiseLen = ctx.sampleRate * duration;
-  const noiseBuffer = ctx.createBuffer(1, noiseLen, ctx.sampleRate);
-  const noiseData = noiseBuffer.getChannelData(0);
-  for (let i = 0; i < noiseLen; i++) {
-    noiseData[i] = (Math.random() * 2 - 1) * 0.6;
-  }
+  // Layer 1: Noise burst (vinyl crackle)
+  const noiseLen = Math.ceil(ctx.sampleRate * dur);
+  const noiseBuf = ctx.createBuffer(1, noiseLen, ctx.sampleRate);
+  const nd = noiseBuf.getChannelData(0);
+  for (let i = 0; i < noiseLen; i++) nd[i] = (Math.random() * 2 - 1) * 0.5;
+
   const noise = ctx.createBufferSource();
-  noise.buffer = noiseBuffer;
+  noise.buffer = noiseBuf;
 
-  const noiseBP = ctx.createBiquadFilter();
-  noiseBP.type = 'bandpass';
-  noiseBP.frequency.setValueAtTime(3000, now);
-  noiseBP.frequency.exponentialRampToValueAtTime(200, now + duration);
-  noiseBP.Q.value = 2;
+  const bp = ctx.createBiquadFilter();
+  bp.type = 'bandpass';
+  bp.frequency.setValueAtTime(2500, now);
+  bp.frequency.linearRampToValueAtTime(200, end);
+  bp.Q.value = 1.5;
 
-  noise.connect(noiseBP);
-  noiseBP.connect(master);
+  noise.connect(bp);
+  bp.connect(master);
   noise.start(now);
-  noise.stop(now + duration);
+  noise.stop(end);
 
-  // Layer 2: Pitch-dropping tone (the "wooooow" slowdown)
+  // Layer 2: Pitch-drop tone ("wooow" slowdown)
   const osc = ctx.createOscillator();
   osc.type = 'sawtooth';
-  osc.frequency.setValueAtTime(400, now);
-  osc.frequency.exponentialRampToValueAtTime(30, now + duration);
+  osc.frequency.setValueAtTime(350, now);
+  osc.frequency.linearRampToValueAtTime(30, end);
 
   const oscGain = ctx.createGain();
-  oscGain.gain.setValueAtTime(0.15, now);
-  oscGain.gain.linearRampToValueAtTime(0.0, now + duration * 0.8);
+  oscGain.gain.setValueAtTime(0.12, now);
+  oscGain.gain.linearRampToValueAtTime(0.0, now + dur * 0.7);
 
-  const oscFilter = ctx.createBiquadFilter();
-  oscFilter.type = 'lowpass';
-  oscFilter.frequency.setValueAtTime(2000, now);
-  oscFilter.frequency.exponentialRampToValueAtTime(100, now + duration);
-
-  osc.connect(oscFilter);
-  oscFilter.connect(oscGain);
+  osc.connect(oscGain);
   oscGain.connect(master);
   osc.start(now);
-  osc.stop(now + duration);
+  osc.stop(end);
 
-  // Layer 3: Low thump (vinyl motor stopping)
+  // Layer 3: Sub thump
   const thump = ctx.createOscillator();
   thump.type = 'sine';
-  thump.frequency.setValueAtTime(80, now);
-  thump.frequency.exponentialRampToValueAtTime(20, now + duration);
+  thump.frequency.setValueAtTime(70, now);
+  thump.frequency.linearRampToValueAtTime(20, end);
 
   const thumpGain = ctx.createGain();
-  thumpGain.gain.setValueAtTime(0.2, now);
-  thumpGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+  thumpGain.gain.setValueAtTime(0.18, now);
+  thumpGain.gain.linearRampToValueAtTime(0.0, end);
 
   thump.connect(thumpGain);
   thumpGain.connect(master);
   thump.start(now);
-  thump.stop(now + duration);
+  thump.stop(end);
+
+  // Hard disconnect after effect ends — ensures zero residual sound
+  setTimeout(() => {
+    master.disconnect();
+  }, dur * 1000 + 50);
 }
