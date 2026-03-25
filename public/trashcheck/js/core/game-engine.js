@@ -173,6 +173,9 @@ function spawnItem() {
   zone.appendChild(el);
   state.itemEl = el;
 
+  // Remove spawn class after animation (350ms) so inline transform (swipe) works
+  setTimeout(() => el.classList.remove('spawn'), 360);
+
   // Auto-fall timer (no swipe = center bin) - uses level-specific timing
   clearTimeout(state.fallTimer);
   state.fallTimer = setTimeout(() => {
