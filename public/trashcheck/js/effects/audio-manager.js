@@ -23,6 +23,12 @@ function ctx() {
   return audioCtx;
 }
 
+// Shared graph for the music module; null until audio is available.
+export function getAudioGraph() {
+  const c = ctx();
+  return c ? { ctx: c, master } : null;
+}
+
 // Browsers only allow audio after a user gesture.
 export function unlockAudio() {
   const once = () => { ctx(); window.removeEventListener('pointerdown', once); window.removeEventListener('keydown', once); };

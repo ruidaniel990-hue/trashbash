@@ -50,6 +50,18 @@ export function bumpCombo() {
   el.classList.add('bump');
 }
 
+export function updateShield(count) {
+  const el = document.getElementById('hud-shield');
+  if (!el) return;
+  el.hidden = count <= 0;
+  el.textContent = '🛡️' + count;
+}
+
+export function setFrozen(frozen) {
+  getEls().timer.parentElement.classList.toggle('frozen', frozen);
+  document.getElementById('screen-game')?.classList.toggle('is-frozen', frozen);
+}
+
 export function updateTimer(timeLeft) {
   const e = getEls();
   const ratio = Math.max(0, Math.min(1, timeLeft / CONFIG.GAME_DURATION));

@@ -6,15 +6,16 @@ import { CATEGORIES } from './game-data.js';
 import { CONFIG } from './game-config.js';
 import { state, resetState } from '../state/game-state.js';
 import { showScreen } from '../ui/screen-manager.js';
-import { resetHUD, updateScore, updateCombo, bumpCombo, updateLevel, updateHotspot } from '../ui/hud.js';
+import { resetHUD, updateScore, updateCombo, bumpCombo, updateLevel, updateHotspot, updateShield, updateTimer } from '../ui/hud.js';
 import { showPause, hidePause, showLevelUpFlash } from '../ui/overlay-manager.js';
 import { binHtml } from '../ui/bin-view.js';
 import { applyScene } from '../ui/scene.js';
 import { iconHtml } from '../ui/icons.js';
-import { floatPoints, flashBin, hintCorrectBin, animateItemSort, shakeScreen, flashVignette, showBanner } from '../effects/animation-manager.js';
+import { floatPoints, flashBin, hintCorrectBin, animateItemSort, animateItemMiss, shakeScreen, flashVignette, showBanner, showTip } from '../effects/animation-manager.js';
 import { burstAt, confettiRain } from '../effects/particle-manager.js';
 import { sfx } from '../effects/audio-manager.js';
 import { vibrate } from '../effects/haptic-manager.js';
+import { startMusic, stopMusic } from '../effects/music.js';
 import { startTimer, stopTimer } from './game-timer.js';
 import { getHighscore, setHighscore } from '../storage/storage-bridge.js';
 import { earnCoins, grantBonus, getBalance } from '../economy/coin-manager.js';
@@ -23,8 +24,20 @@ import { getLevelFallTime, getLevelSpawnDelay, getItemsToComplete, hotspotChange
 import { setCurrentHotspot } from '../hotspot/hotspot-manager.js';
 import { showDeliverySequence, showResultsScreen, showHub } from '../base/hub-manager.js';
 import { renderShop } from '../shop/shop-screen.js';
+import { getActiveEffects } from '../shop/shop-manager.js';
+import { trackDaily } from '../progress/daily.js';
+import { recordLevel, getSelectedStartLevel, getStartSpots } from '../progress/unlocks.js';
+import { isTutorialDone, markTutorialDone } from '../progress/tutorial.js';
 
 const COMBO_MILESTONES = { 5: 'Combo ×5', 8: 'Combo ×8', 10: 'Max Combo!' };
+const GOLDEN_CHANCE = 0.08;
+const POWERUP_CHANCE = 0.06;
+const POWER_UPS = [
+  { power: 'freeze', emoji: '❄️', name: 'Frost' },
+  { power: 'hint',   emoji: '🧭', name: 'Tipp-Blick' },
+  { power: 'time',   emoji: '⏱️', name: '+5 Sekunden' },
+];
+const DIR_WORDS = ['nach links', 'nach unten', 'nach rechts'];
 
 // ── Render bins at bottom ──
 function renderBins() {
@@ -90,7 +103,13 @@ function showTransition(fromHotspot, toHotspot, callback) {
 }
 
 // ── Initialize start screen ──
+let onStartShown = null;
+export function setStartRenderer(fn) {
+  onStartShown = fn;
+}
+
 export function initStart() {
+  if (onStartShown) onStartShown();
   const hs = getHighscore();
   const hsEl = document.getElementById('hs-display');
   if (hsEl) hsEl.textContent = hs;
@@ -106,6 +125,11 @@ export function initStart() {
 export function startGame() {
   resetState();
   resetHUD();
+  state.level = getSelectedStartLevel();
+  state.effects = getActiveEffects();
+  state.shieldsLeft = state.effects.comboShield;
+  state.tutorialStep = isTutorialDone() ? null : 0;
+  updateShield(state.shieldsLeft);
 
   // Set up first level's hotspot
   const hotspot = getHotspotForLevel(state.level);
@@ -132,10 +156,12 @@ export function startLevel() {
 
   showScreen('screen-game');
 
-  // Start timer only on first level (timer persists across levels)
-  if (state.level === 1) {
+  // Timer starts once per run (after the tutorial) and keeps running across levels
+  if (!state.timerStarted && state.tutorialStep === null) {
+    state.timerStarted = true;
     startTimer(() => endGame());
   }
+  startMusic(state.currentHotspot?.id);
 
   setTimeout(() => spawnItem(), CONFIG.INITIAL_SPAWN_DELAY);
 }
@@ -155,42 +181,172 @@ function getSpawnXPercent() {
 }
 
 // ── Spawn Item ──
-function spawnItem() {
-  if (!state.gameActive || state.inTransition) return;
-
-  // Pick random item from one of the active bins
-  const binKey = state.activeBins[Math.floor(Math.random() * state.activeBins.length)];
-  const cat = CATEGORIES[binKey];
-  const item = cat.items[Math.floor(Math.random() * cat.items.length)];
-  state.currentItem = { ...item, bin: binKey };
-  state.totalItems++;
-
+function createItemEl(emoji, label, extraClass, fallTime) {
   const zone = document.getElementById('fall-zone');
-  if (!zone) return;
-
-  const fallTime = getLevelFallTime(state.level);
+  if (!zone) return null;
   const el = document.createElement('div');
-  el.className = 'swipe-item spawn';
+  el.className = 'swipe-item spawn' + (extraClass ? ' ' + extraClass : '');
   el.style.left = getSpawnXPercent() + '%';
   el.style.top = '15%';
   el.innerHTML = `<div class="item-fall" style="--fall:${fallTime}ms">
-      <div class="item-token">${iconHtml(item.emoji, 'item-icon')}</div>
-      <div class="item-name">${item.name}</div>
+      <div class="item-token">${iconHtml(emoji, 'item-icon')}</div>
+      <div class="item-name"></div>
     </div>`;
+  el.querySelector('.item-name').textContent = label;
   zone.appendChild(el);
   state.itemEl = el;
 
   // Remove spawn class after animation so inline transform (swipe) works
   setTimeout(() => el.classList.remove('spawn'), 360);
 
-  // Auto-fall timer (no swipe = center bin) - uses level-specific timing
-  armFallTimer(fallTime);
+  document.getElementById('hint-left')?.classList.remove('show');
+  document.getElementById('hint-right')?.classList.remove('show');
+  return el;
+}
 
-  // Reset swipe hints
-  const hintLeft = document.getElementById('hint-left');
-  const hintRight = document.getElementById('hint-right');
-  if (hintLeft) hintLeft.classList.remove('show');
-  if (hintRight) hintRight.classList.remove('show');
+function pickItem(binKey, avoidTraps = false) {
+  const pool = CATEGORIES[binKey].items.filter(i => !avoidTraps || !i.tip);
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+function spawnItem() {
+  if (!state.gameActive || state.inTransition) return;
+  if (state.tutorialStep !== null) return spawnTutorialItem();
+
+  const fallTime = getLevelFallTime(state.level);
+
+  if (state.totalItems >= 5 && Math.random() < POWERUP_CHANCE) {
+    const power = POWER_UPS[Math.floor(Math.random() * POWER_UPS.length)];
+    state.currentItem = { ...power };
+    createItemEl(power.emoji, power.name, 'is-power', fallTime);
+    armFallTimer(fallTime);
+    return;
+  }
+
+  // Pick random item from one of the active bins
+  const binKey = state.activeBins[Math.floor(Math.random() * state.activeBins.length)];
+  const item = pickItem(binKey);
+  const golden = state.totalItems >= 3 && Math.random() < GOLDEN_CHANCE;
+  state.currentItem = { ...item, bin: binKey, golden };
+  state.totalItems++;
+
+  createItemEl(item.emoji, (golden ? '✨ ' : '') + item.name, golden ? 'is-golden' : '', fallTime);
+
+  if (state.hintsLeft > 0) {
+    state.hintsLeft--;
+    document.getElementById('bin-' + state.activeBins.indexOf(binKey))?.classList.add('hint-glow');
+  }
+
+  // Not swiped before the fall ends = missed (level-specific timing)
+  armFallTimer(fallTime);
+}
+
+function clearHintGlow() {
+  document.querySelectorAll('.bin.hint-glow').forEach(b => b.classList.remove('hint-glow'));
+}
+
+// ── Tutorial: one guided item per bin, no time pressure ──
+function spawnTutorialItem() {
+  const index = state.tutorialStep;
+  const binKey = state.activeBins[index];
+  const item = pickItem(binKey, true);
+  state.currentItem = { ...item, bin: binKey };
+  createItemEl(item.emoji, item.name, 'is-tutorial', 0);
+  showTutorialHint(index, CATEGORIES[binKey].name);
+}
+
+function showTutorialHint(index, binName) {
+  let el = document.getElementById('tut-hint');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'tut-hint';
+    el.className = 'tut-hint';
+    document.getElementById('screen-game').appendChild(el);
+  }
+  el.dataset.dir = index;
+  el.innerHTML = `<div class="tut-step">Übung ${index + 1} von ${state.activeBins.length}</div>
+    <div class="tut-text">Wisch ${DIR_WORDS[index]} in die <strong></strong></div>
+    <div class="tut-sub">oder tipp direkt auf die Tonne</div>
+    <span class="tut-hand" aria-hidden="true">👆</span>`;
+  el.querySelector('strong').textContent = binName;
+  document.querySelectorAll('.bin').forEach(b => b.classList.toggle('tut-target', b.id === 'bin-' + index));
+}
+
+function clearTutorialHint() {
+  document.getElementById('tut-hint')?.remove();
+  document.querySelectorAll('.bin.tut-target').forEach(b => b.classList.remove('tut-target'));
+}
+
+function tutorialSort(binIndex) {
+  const item = state.currentItem;
+  const binEl = document.getElementById('bin-' + binIndex);
+  if (state.activeBins[binIndex] !== item.bin) {
+    flashBin(binEl, false);
+    sfx.wrong();
+    vibrate('heavy');
+    if (state.itemEl) {
+      state.itemEl.style.transition = 'transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)';
+      state.itemEl.style.transform = '';
+    }
+    return;
+  }
+
+  sfx.whoosh();
+  animateItemSort(state.itemEl, binEl);
+  state.currentItem = null;
+  const step = state.tutorialStep;
+  setTimeout(() => {
+    flashBin(binEl, true);
+    burstAt(binEl, { color: CATEGORIES[item.bin].color, count: 14 });
+    sfx.correct(step + 1);
+  }, CONFIG.ITEM_SORT_ANIM * 0.7);
+  vibrate('light');
+
+  state.tutorialStep++;
+  if (state.tutorialStep < state.activeBins.length) {
+    setTimeout(() => spawnItem(), 550);
+    return;
+  }
+  finishTutorial();
+}
+
+function finishTutorial() {
+  state.tutorialStep = null;
+  markTutorialDone();
+  clearTutorialHint();
+  setTimeout(() => {
+    showBanner('Jetzt echt – los!', 'combo');
+    sfx.levelUp();
+  }, 400);
+  setTimeout(() => {
+    if (!state.gameActive) return;
+    state.timerStarted = true;
+    startTimer(() => endGame());
+    spawnItem();
+  }, 1600);
+}
+
+// ── Power-ups: collected by any swipe, tap or key ──
+function collectPowerUp(item) {
+  const el = state.itemEl;
+  burstAt(el?.querySelector('.item-token'), { color: '#7fe2ff', count: 26 });
+  el?.remove();
+  state.currentItem = null;
+
+  if (item.power === 'freeze') {
+    state.frozenUntil = Date.now() + 5000;
+    showBanner('❄️ Frost: 5 s Zeitstopp', 'shield');
+  } else if (item.power === 'hint') {
+    state.hintsLeft = 3;
+    showBanner('🧭 Tipp-Blick: 3 Hinweise', 'shield');
+  } else {
+    state.timeLeft = Math.min(state.timeLeft + 5, CONFIG.GAME_DURATION);
+    updateTimer(state.timeLeft);
+    showBanner('⏱️ +5 Sekunden', 'golden');
+  }
+  sfx.combo();
+  vibrate('double');
+  setTimeout(() => spawnItem(), getLevelSpawnDelay(state.level));
 }
 
 let fallDeadline = 0;
@@ -199,19 +355,77 @@ let fallRemaining = 0;
 function armFallTimer(ms) {
   clearTimeout(state.fallTimer);
   fallDeadline = Date.now() + ms;
-  state.fallTimer = setTimeout(() => {
-    if (state.gameActive && !state.paused && state.currentItem) {
-      sortItem(1);
-    }
-  }, ms);
+  state.fallTimer = setTimeout(missItem, ms);
+}
+
+function rewardDaily(event) {
+  const reward = trackDaily(event);
+  if (!reward) return;
+  grantBonus(reward);
+  setTimeout(() => {
+    showBanner('Tagesaufgabe geschafft! +' + reward + ' 🪙', 'daily');
+    sfx.combo();
+  }, 500);
+}
+
+// A mistake breaks the combo unless a shield from the equipment absorbs it.
+function breakCombo() {
+  if (state.shieldsLeft > 0 && state.combo > 1) {
+    state.shieldsLeft--;
+    updateShield(state.shieldsLeft);
+    showBanner('🛡️ Combo geschützt', 'shield');
+    return;
+  }
+  state.combo = 1;
+  updateCombo(1);
+}
+
+function registerMistake(item, chosenBinEl) {
+  const correctBinEl = document.getElementById('bin-' + state.activeBins.indexOf(item.bin));
+  breakCombo();
+  state.timeLeft = Math.max(state.timeLeft - CONFIG.TIME_PENALTY_WRONG, 0);
+  state.mistakes.push({ emoji: item.emoji, name: item.name, bin: item.bin });
+
+  if (chosenBinEl) flashBin(chosenBinEl, false);
+  floatPoints('-' + CONFIG.TIME_PENALTY_WRONG + 's', false, chosenBinEl || correctBinEl);
+  hintCorrectBin(correctBinEl);
+  // Trap items explain themselves; otherwise the bin's general tip, once per run.
+  const tipKey = item.tip ? 'item:' + item.name : item.bin;
+  if (!state.tipsShown[tipKey]) {
+    state.tipsShown[tipKey] = true;
+    const cat = CATEGORIES[item.bin];
+    showTip(item.tip ? { name: item.name + ' → ' + cat.name, tip: item.tip } : cat);
+  }
+  shakeScreen(document.getElementById('screen-game'));
+  flashVignette('wrong');
+  sfx.wrong();
+  vibrate('heavy');
+}
+
+// Not swiping in time counts as a miss, never as a free center-bin guess.
+function missItem() {
+  if (!state.gameActive || state.paused || !state.currentItem) return;
+  const item = state.currentItem;
+  clearHintGlow();
+  animateItemMiss(state.itemEl);
+  if (!item.power) {
+    showBanner('Verpasst!', 'miss');
+    registerMistake(item, null);
+  }
+  state.currentItem = null;
+  setTimeout(() => spawnItem(), getLevelSpawnDelay(state.level));
 }
 
 // ── Sort item into bin (0=left, 1=center, 2=right) ──
 export function sortItem(binIndex) {
   if (!state.gameActive || !state.currentItem) return;
+  if (state.tutorialStep !== null) return tutorialSort(binIndex);
   clearTimeout(state.fallTimer);
+  clearHintGlow();
 
-  const correctKey = state.currentItem.bin;
+  const item = state.currentItem;
+  if (item.power) return collectPowerUp(item);
+  const correctKey = item.bin;
   const targetBin = state.activeBins[binIndex];
   const isCorrect = targetBin === correctKey;
   const binEl = document.getElementById('bin-' + binIndex);
@@ -221,11 +435,12 @@ export function sortItem(binIndex) {
 
   if (isCorrect) {
     state.correctCount++;
-    const pts = CONFIG.BASE_POINTS * state.combo;
+    const pts = CONFIG.BASE_POINTS * state.combo * (item.golden ? 2 : 1);
     state.score += pts;
     state.combo = Math.min(state.combo + 1, CONFIG.MAX_COMBO);
     state.maxCombo = Math.max(state.maxCombo, state.combo);
-    state.timeLeft = Math.min(state.timeLeft + CONFIG.TIME_BONUS_CORRECT, CONFIG.GAME_DURATION);
+    const timeBonus = CONFIG.TIME_BONUS_CORRECT + state.effects.timeBonusCorrect;
+    state.timeLeft = Math.min(state.timeLeft + timeBonus, CONFIG.GAME_DURATION);
 
     updateScore(state.score);
     updateCombo(state.combo);
@@ -233,10 +448,17 @@ export function sortItem(binIndex) {
     setTimeout(() => {
       flashBin(binEl, true);
       floatPoints('+' + pts, true, binEl);
-      burstAt(binEl, { color: CATEGORIES[correctKey].color, count: 10 + state.combo * 2 });
+      burstAt(binEl, { color: item.golden ? '#ffd23f' : CATEGORIES[correctKey].color, count: 10 + state.combo * 2 + (item.golden ? 16 : 0) });
       sfx.correct(state.combo);
+      if (item.golden) sfx.coin();
     }, CONFIG.ITEM_SORT_ANIM * 0.7);
     vibrate('light');
+    if (item.golden) showBanner('✨ Goldener Müll ×2', 'golden');
+
+    rewardDaily({ type: 'correct', bin: correctKey });
+    rewardDaily({ type: 'combo', value: state.combo });
+    rewardDaily({ type: 'score', value: state.score });
+    if (item.golden) rewardDaily({ type: 'golden' });
 
     if (COMBO_MILESTONES[state.combo]) {
       showBanner(COMBO_MILESTONES[state.combo], state.combo >= 8 ? 'fire' : 'combo');
@@ -244,16 +466,7 @@ export function sortItem(binIndex) {
       vibrate('double');
     }
   } else {
-    state.combo = 1;
-    state.timeLeft = Math.max(state.timeLeft - CONFIG.TIME_PENALTY_WRONG, 0);
-    updateCombo(1);
-    flashBin(binEl, false);
-    floatPoints('-' + CONFIG.TIME_PENALTY_WRONG + 's', false, binEl);
-    hintCorrectBin(document.getElementById('bin-' + state.activeBins.indexOf(correctKey)));
-    shakeScreen(document.getElementById('screen-game'));
-    flashVignette('wrong');
-    sfx.wrong();
-    vibrate('heavy');
+    registerMistake(item, binEl);
   }
 
   state.currentItem = null;
@@ -283,8 +496,13 @@ function checkLevelUp() {
   state.itemsSinceLevel = 0;
   state.itemsForNextLevel = getItemsToComplete(state.level);
 
-  // Bonus time
+  // Bonus time, fresh combo shields, progress
   state.timeLeft = Math.min(state.timeLeft + CONFIG.TIME_BONUS_LEVEL_UP, CONFIG.GAME_DURATION);
+  state.shieldsLeft = state.effects.comboShield;
+  updateShield(state.shieldsLeft);
+  const newSpot = recordLevel(state.level) && getStartSpots().find(spot => spot.level === state.level)?.name;
+  rewardDaily({ type: 'level', value: state.level });
+  if (newSpot) setTimeout(() => showBanner('Neuer Startort: ' + newSpot, 'daily'), 1100);
 
   // Check if hotspot changes
   const prevHotspot = state.currentHotspot;
@@ -294,6 +512,7 @@ function checkLevelUp() {
     // Hotspot changes: freeze game, show transition, then preview
     state.inTransition = true;
     clearTimeout(state.fallTimer);
+    stopMusic();
     state.currentItem = null;
 
     state.currentHotspot = nextHotspot;
@@ -329,10 +548,12 @@ export function togglePause() {
     showPause(state.level, state.score);
     clearTimeout(state.fallTimer);
     fallRemaining = Math.max(0, fallDeadline - Date.now());
+    stopMusic();
   } else {
     hidePause();
-    // Resume with the remaining fall time, not a fresh one
-    if (state.currentItem) armFallTimer(fallRemaining);
+    startMusic(state.currentHotspot?.id);
+    // Resume with the remaining fall time, not a fresh one (tutorial items never fall)
+    if (state.currentItem && state.tutorialStep === null) armFallTimer(fallRemaining);
   }
 }
 
@@ -349,11 +570,14 @@ function endGame() {
   stopTimer();
   clearTimeout(state.fallTimer);
   if (state.itemEl && state.itemEl.parentNode) state.itemEl.remove();
+  clearTutorialHint();
+  clearHintGlow();
+  stopMusic();
   sfx.gameOver();
 
   // Calculate coins (score coins + combo bonus)
   const comboBonus = grantBonus(state.maxCombo * 2);
-  const coinsEarned = earnCoins(state.score) + comboBonus;
+  const coinsEarned = earnCoins(state.score, state.effects.coinMultiplier) + comboBonus;
 
   // Highscore check
   const prevHs = getHighscore();
@@ -369,6 +593,8 @@ function endGame() {
     level: state.level,
     coinsEarned,
     comboBonus,
+    coinMultiplier: state.effects.coinMultiplier,
+    mistakes: state.mistakes,
     isNewHighscore: isNewHs,
     hotspot: state.currentHotspot,
   };

@@ -5,6 +5,9 @@ import { showScreen } from '../ui/screen-manager.js';
 import { getBalance } from '../economy/coin-manager.js';
 import { sfx } from '../effects/audio-manager.js';
 import { confettiRain } from '../effects/particle-manager.js';
+import { CATEGORIES } from '../core/game-data.js';
+import { iconHtml } from '../ui/icons.js';
+import { getDailyTask } from '../progress/daily.js';
 
 let lastResults = null;
 
@@ -60,10 +63,10 @@ function starsFor(accuracy, correct) {
 
 // Show the results/reward screen
 export function showResultsScreen(results) {
-  const accuracy = results.totalItems > 0
-    ? Math.round((results.correctCount / results.totalItems) * 100)
-    : 0;
-  const errors = results.totalItems - results.correctCount;
+  // An item still in the air when the round ends is neither right nor wrong.
+  const errors = results.mistakes.length;
+  const judged = results.correctCount + errors;
+  const accuracy = judged > 0 ? Math.round((results.correctCount / judged) * 100) : 0;
   const stars = starsFor(accuracy, results.correctCount);
 
   const ratings = [
@@ -77,7 +80,6 @@ export function showResultsScreen(results) {
   setText('results-correct', results.correctCount);
   setText('results-errors', errors);
   setText('results-accuracy', accuracy + '%');
-  setText('results-combo-bonus', '+' + results.comboBonus);
   setText('results-max-combo', '×' + results.maxCombo);
 
   const starEls = document.querySelectorAll('#results-stars .star');
@@ -88,6 +90,13 @@ export function showResultsScreen(results) {
     }
   });
 
+  const bonusParts = ['Combo-Bonus +' + results.comboBonus];
+  if (results.coinMultiplier > 1) bonusParts.push('Ausrüstung +' + Math.round((results.coinMultiplier - 1) * 100) + ' %');
+  setText('results-coins-note', 'inkl. ' + bonusParts.join(' · '));
+
+  renderMistakes(results.mistakes || []);
+  renderDailyStatus();
+
   const hsEl = document.getElementById('results-new-hs');
   if (hsEl) hsEl.hidden = !results.isNewHighscore;
 
@@ -97,6 +106,32 @@ export function showResultsScreen(results) {
   countUp('results-coins-val', results.coinsEarned, '+', 1100);
   for (let i = 0; i < 4; i++) sfx.coin(1.0 + i * 0.12);
   if (results.isNewHighscore || stars === 3) setTimeout(() => confettiRain(48), 900);
+}
+
+function renderMistakes(mistakes) {
+  const box = document.getElementById('results-mistakes');
+  const list = document.getElementById('mistakes-list');
+  if (!box || !list) return;
+  const unique = [...new Map(mistakes.map(m => [m.name, m])).values()].slice(0, 4);
+  box.hidden = unique.length === 0;
+  list.innerHTML = unique.map(m => {
+    const cat = CATEGORIES[m.bin];
+    return `<li class="mistake">
+      <span class="mistake-icon">${iconHtml(m.emoji)}</span>
+      <span class="mistake-name">${m.name}</span>
+      <span class="mistake-bin ${cat.cls}">→ ${cat.name}</span>
+    </li>`;
+  }).join('');
+}
+
+function renderDailyStatus() {
+  const el = document.getElementById('results-daily');
+  if (!el) return;
+  const task = getDailyTask();
+  el.classList.toggle('is-done', task.done);
+  el.textContent = task.done
+    ? `${task.icon} Tagesaufgabe erledigt`
+    : `${task.icon} Tagesaufgabe: ${task.progress}/${task.target}`;
 }
 
 // Show the hub/base screen

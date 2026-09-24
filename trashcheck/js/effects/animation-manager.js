@@ -62,6 +62,27 @@ export function animateItemSort(itemEl, binEl) {
   setTimeout(() => { if (itemEl.parentNode) itemEl.remove(); }, CONFIG.ITEM_SORT_ANIM);
 }
 
+// Missed item drops out of the play area instead of flying into a bin.
+export function animateItemMiss(itemEl) {
+  if (!itemEl) return;
+  itemEl.style.transition = '';
+  itemEl.style.transform = '';
+  itemEl.classList.add('missed');
+  setTimeout(() => { if (itemEl.parentNode) itemEl.remove(); }, 420);
+}
+
+let tipEl = null;
+export function showTip(category) {
+  if (tipEl) tipEl.remove();
+  tipEl = document.createElement('div');
+  tipEl.className = 'tip-toast';
+  tipEl.innerHTML = `<span class="tip-label">Tipp · ${category.name}</span><span class="tip-text"></span>`;
+  tipEl.querySelector('.tip-text').textContent = category.tip;
+  document.body.appendChild(tipEl);
+  const el = tipEl;
+  setTimeout(() => { el.remove(); if (tipEl === el) tipEl = null; }, 3400);
+}
+
 export function shakeScreen(screenEl) {
   if (screenEl) restartClass(screenEl, 'jolt');
 }

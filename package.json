@@ -16,7 +16,8 @@
     "mobile:qr": "start http://localhost:3000/qr.html",
     "lint": "eslint src --ext .ts",
     "format": "prettier --write src",
-    "test": "vitest"
+    "test": "vitest",
+    "sync:pages": "node scripts/sync-pages.mjs"
   },
   "keywords": [
     "trash",

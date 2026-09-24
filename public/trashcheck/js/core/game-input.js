@@ -21,6 +21,16 @@ export function setupInput(zone, onSort) {
 
   // Keyboard (desktop): arrows map to left / center / right bin
   document.addEventListener('keydown', handleKeyDown);
+
+  // Tapping a bin sorts into it directly
+  document.getElementById('bins-row')?.addEventListener('click', handleBinTap);
+}
+
+function handleBinTap(e) {
+  const bin = e.target.closest('.bin');
+  if (!bin || !state.gameActive || state.paused || !state.currentItem) return;
+  const index = Number(bin.id.replace('bin-', ''));
+  if (Number.isInteger(index)) onSortCallback?.(index);
 }
 
 const KEY_TO_BIN = { ArrowLeft: 0, ArrowDown: 1, ArrowRight: 2 };

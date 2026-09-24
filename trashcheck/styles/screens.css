@@ -233,40 +233,6 @@
   font-variant-numeric: tabular-nums;
 }
 
-.gesture-row {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-  width: 100%;
-  max-width: 330px;
-}
-.gesture {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  padding: 12px 6px 10px;
-  border-radius: 16px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-}
-.gesture-arrow {
-  font-family: var(--display);
-  font-size: 1.7rem;
-  line-height: 1;
-  color: var(--cyan);
-}
-.gesture:nth-child(2) .gesture-arrow { animation: nudgeDown 1.6s ease-in-out infinite; }
-.gesture:nth-child(1) .gesture-arrow { animation: nudgeLeft 1.6s ease-in-out infinite; }
-.gesture:nth-child(3) .gesture-arrow { animation: nudgeRight 1.6s ease-in-out infinite; }
-.gesture-label {
-  font-size: 0.7rem;
-  font-weight: 900;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--muted);
-}
-
 .how-note {
   max-width: 34ch;
   text-align: center;
@@ -278,6 +244,9 @@
 }
 
 .btn-play {
+  position: sticky;
+  bottom: 0;
+  flex-shrink: 0;
   margin-top: 4px;
   font-size: 1.6rem;
   padding: 18px 22px 17px;
@@ -734,3 +703,177 @@
 .shop-btn-equip { background: linear-gradient(180deg, #7fe2ff, var(--cyan)); color: #032533; }
 .shop-btn-unequip { background: var(--surface-2); color: var(--text); }
 .shop-locked { font-size: 0.75rem; font-weight: 800; color: var(--muted); }
+
+/* ══════ START SCREEN: PROGRESS ══════ */
+.screen-start { gap: 14px; touch-action: pan-y; }
+.screen-start .logo-badge { width: 92px; height: 92px; }
+.screen-start .logo-icon { font-size: 3.2rem; }
+.screen-start .logo-type { font-size: clamp(2.4rem, 11vw, 3.3rem); margin-top: 10px; }
+.screen-start .game-sub { margin-top: 10px; }
+
+.daily-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  max-width: 340px;
+  padding: 12px 14px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(63, 208, 255, 0.16), rgba(63, 208, 255, 0.04));
+  border: 1px solid rgba(63, 208, 255, 0.35);
+}
+.daily-card.is-done {
+  background: linear-gradient(135deg, rgba(46, 229, 157, 0.18), rgba(46, 229, 157, 0.05));
+  border-color: rgba(46, 229, 157, 0.45);
+}
+.daily-icon {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.08);
+  font-size: 1.5rem;
+}
+.daily-kicker {
+  font-size: 0.62rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--cyan);
+}
+.daily-card.is-done .daily-kicker { color: var(--accent); }
+.daily-text { margin-top: 1px; font-size: 0.82rem; font-weight: 800; line-height: 1.3; }
+.daily-bar {
+  margin-top: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+}
+.daily-bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--cyan), var(--accent));
+}
+.daily-reward {
+  font-family: var(--display);
+  font-size: 1.05rem;
+  color: var(--gold);
+  white-space: nowrap;
+}
+.daily-card.is-done .daily-reward { color: var(--accent); font-size: 1.5rem; }
+
+.start-section { width: 100%; max-width: 340px; }
+.start-section-title {
+  margin-bottom: 6px;
+  font-size: 0.66rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+}
+.spot-picker {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: none;
+  touch-action: pan-x;
+}
+.spot-picker::-webkit-scrollbar { display: none; }
+.spot {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  min-width: 70px;
+  padding: 8px 8px 7px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, transform 0.08s;
+}
+.spot:active:not([disabled]) { transform: scale(0.95); }
+.spot.is-selected {
+  border-color: var(--accent);
+  background: rgba(46, 229, 157, 0.14);
+  box-shadow: 0 0 16px rgba(46, 229, 157, 0.3);
+}
+.spot[disabled] { cursor: not-allowed; opacity: 0.45; }
+.spot-icon { font-size: 1.4rem; line-height: 1; }
+.spot-name { font-size: 0.64rem; font-weight: 900; white-space: nowrap; }
+
+.equip-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  max-width: 340px;
+  padding: 8px 12px;
+  border-radius: 14px;
+  background: rgba(255, 200, 61, 0.08);
+  border: 1px dashed rgba(255, 200, 61, 0.35);
+  font-size: 0.74rem;
+  font-weight: 800;
+  color: #ffe3a1;
+}
+.equip-row[hidden] { display: none; }
+.equip-icons { display: flex; gap: 2px; font-size: 1.2rem; }
+
+/* ══════ RESULTS: MISTAKES & DAILY ══════ */
+#screen-results {
+  justify-content: flex-start;
+  overflow-y: auto;
+  touch-action: pan-y;
+  padding-top: calc(max(24px, env(safe-area-inset-top)) + 56px);
+}
+#screen-results .results-card { margin: auto 0; flex-shrink: 0; }
+.results-mistakes {
+  margin-bottom: 14px;
+  padding: 12px;
+  border-radius: 16px;
+  background: rgba(255, 77, 94, 0.08);
+  border: 1px solid rgba(255, 77, 94, 0.3);
+  text-align: left;
+}
+.results-mistakes[hidden] { display: none; }
+.mistakes-title {
+  margin-bottom: 8px;
+  font-size: 0.68rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #ff9aa4;
+}
+.mistakes-list { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.mistake {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+.mistake-icon { font-size: 1.2rem; line-height: 1; }
+.mistake-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mistake-bin {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.3);
+  color: var(--ink);
+  font-size: 0.7rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+.results-daily {
+  margin-bottom: 14px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: var(--cyan);
+}
+.results-daily.is-done { color: var(--accent); }

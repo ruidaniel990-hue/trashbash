@@ -49,14 +49,19 @@
 
   <div class="hs-chip">🏆 <span>Highscore</span> <strong id="hs-display">0</strong></div>
 
-  <div class="gesture-row" aria-label="Steuerung">
-    <div class="gesture"><span class="gesture-arrow">←</span><span class="gesture-label">Links</span></div>
-    <div class="gesture"><span class="gesture-arrow">↓</span><span class="gesture-label">Mitte</span></div>
-    <div class="gesture"><span class="gesture-arrow">→</span><span class="gesture-label">Rechts</span></div>
+  <div class="daily-card" id="daily-card"></div>
+
+  <div class="start-section">
+    <div class="start-section-title">Startort</div>
+    <div class="spot-picker" id="spot-picker"></div>
   </div>
-  <p class="how-note">Wischen oder Pfeiltasten. Richtig bringt Combo und Zeit, falsch kostet 3 Sekunden. Im Industriegebiet wartet Sondermüll ☢️.</p>
+
+  <div class="equip-row" id="equip-row" hidden></div>
+
+  <p class="how-note">Wisch nach links, unten oder rechts – oder tipp auf die Tonne –, bevor der Ring abläuft. Falsch oder verpasst kostet 3 Sekunden. Goldener Müll zählt doppelt ✨, Power-ups wie ❄️ helfen dir.</p>
 
   <button class="btn-3d btn-play" onclick="startGame()">Spielen</button>
+  <button class="link-btn" onclick="replayTutorial()">Tutorial wiederholen</button>
   <div class="credits">Icons: Twemoji (CC-BY 4.0)</div>
 </div>
 
@@ -109,6 +114,7 @@
     <div class="combo-chip" id="hud-combo" data-tier="0">
       <span class="combo-val" id="combo-val">×1</span>
       <span class="hud-label">Combo</span>
+      <span class="shield-badge" id="hud-shield" hidden></span>
     </div>
     <div class="hud-time">
       <span class="hud-time-val" id="hud-timer">60</span>
@@ -190,8 +196,15 @@
 
     <div class="results-coins">
       <span class="results-coins-main">🪙 <span id="results-coins-val">+0</span></span>
-      <span class="results-coins-note">davon Combo-Bonus <span id="results-combo-bonus">+0</span></span>
+      <span class="results-coins-note" id="results-coins-note">inkl. Combo-Bonus</span>
     </div>
+
+    <div class="results-mistakes" id="results-mistakes" hidden>
+      <div class="mistakes-title">Das gehört woanders hin</div>
+      <ul class="mistakes-list" id="mistakes-list"></ul>
+    </div>
+
+    <div class="results-daily" id="results-daily"></div>
 
     <div class="results-btns">
       <button class="btn-3d results-btn" onclick="startGame()">Nochmal spielen</button>
@@ -221,6 +234,11 @@
       <span class="hub-action-icon">👤</span>
       <span><span class="hub-action-label">Avatar</span>
       <span class="hub-action-sub">Equipment ansehen</span></span>
+    </button>
+    <button class="hub-action" onclick="showStart()">
+      <span class="hub-action-icon">🎯</span>
+      <span><span class="hub-action-label">Startseite</span>
+      <span class="hub-action-sub">Tagesaufgabe & Startort wählen</span></span>
     </button>
     <a href="../index.html" class="hub-action hub-action-exit">
       <span class="hub-action-icon">🏠</span>
