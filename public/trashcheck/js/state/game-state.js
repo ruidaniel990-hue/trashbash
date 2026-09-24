@@ -34,8 +34,11 @@ export const state = {
   effects: { timeBonusCorrect: 0, comboShield: 0, coinMultiplier: 1 }, // from equipped shop items
   shieldsLeft: 0,     // combo shields left this level
   mistakes: [],       // { emoji, name, bin } of wrong or missed items
-  tipsShown: {},      // category keys whose tip was shown this run
+  tipsShown: {},      // bin keys / trap items whose tip was shown this run
   timerStarted: false,
+  tutorialStep: null, // 0..2 while the first-run tutorial is active
+  frozenUntil: 0,     // Frost power-up: timestamp until the round timer is paused
+  hintsLeft: 0,       // Hint power-up: items that still show their correct bin
 
   // DOM references (set during gameplay)
   itemEl: null,
@@ -69,6 +72,9 @@ export function resetState() {
   state.mistakes = [];
   state.tipsShown = {};
   state.timerStarted = false;
+  state.tutorialStep = null;
+  state.frozenUntil = 0;
+  state.hintsLeft = 0;
   state.itemEl = null;
   state.fallTimer = null;
   state.swipeStartX = 0;

@@ -118,3 +118,16 @@
   font-variant-numeric: tabular-nums;
 }
 .chip-coins { color: var(--gold); }
+
+.link-btn {
+  border: none;
+  background: none;
+  color: var(--muted);
+  font-weight: 800;
+  font-size: 0.78rem;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+.link-btn:hover { color: var(--text); }

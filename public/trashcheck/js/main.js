@@ -10,6 +10,7 @@ import { getDailyTask } from './progress/daily.js';
 import { getStartSpots, getSelectedStartId, setSelectedStart } from './progress/unlocks.js';
 import { getActiveEffects, getEquipped } from './shop/shop-manager.js';
 import { getItemById } from './shop/shop-data.js';
+import { resetTutorial } from './progress/tutorial.js';
 
 // Expose to window for onclick handlers in HTML
 window.startGame = startGame;
@@ -20,6 +21,10 @@ window.goToHub = goToHub;
 window.openShop = openShop;
 window.openAvatar = openAvatar;
 window.showStart = initStart;
+window.replayTutorial = () => {
+  resetTutorial();
+  startGame();
+};
 
 function renderMuteButtons() {
   const muted = isMuted();

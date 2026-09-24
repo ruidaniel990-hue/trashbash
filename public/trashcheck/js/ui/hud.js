@@ -57,6 +57,11 @@ export function updateShield(count) {
   el.textContent = '🛡️' + count;
 }
 
+export function setFrozen(frozen) {
+  getEls().timer.parentElement.classList.toggle('frozen', frozen);
+  document.getElementById('screen-game')?.classList.toggle('is-frozen', frozen);
+}
+
 export function updateTimer(timeLeft) {
   const e = getEls();
   const ratio = Math.max(0, Math.min(1, timeLeft / CONFIG.GAME_DURATION));

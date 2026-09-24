@@ -1,5 +1,6 @@
 // ── Trash Categories & Items ──
-// Each category has: name (display), icon (emoji), cls (CSS class), tip (shown on mistakes), color (effects), items array
+// Each category has: name (display), icon (emoji), cls (CSS class), tip (shown on mistakes), color (effects), items array.
+// Items may carry their own tip for common sorting traps; it replaces the bin tip on mistakes.
 
 export const CATEGORIES = {
   gelb: {
@@ -15,7 +16,10 @@ export const CATEGORIES = {
       { emoji: '🥫', name: 'Konservendose' },
       { emoji: '🍫', name: 'Schokopack' },
       { emoji: '🧃', name: 'Getränkekarton' },
-      { emoji: '🪣', name: 'Kunststoffeimer' },
+      { emoji: '🥛', name: 'Milchkarton', tip: 'Getränkekartons sind Verbundverpackung – Gelbe Tonne, nicht Papier.' },
+      { emoji: '🧈', name: 'Butterfolie', tip: 'Butterfolie aus Alu-Papier-Verbund ist Verpackung – Gelbe Tonne.' },
+      { emoji: '🍨', name: 'Eisbecher' },
+      { emoji: '🍬', name: 'Bonbonpapier', tip: 'Bonbonpapier ist eine Plastikverpackung – Gelbe Tonne.' },
     ],
   },
   glas: {
@@ -30,6 +34,8 @@ export const CATEGORIES = {
       { emoji: '🍶', name: 'Glasflasche' },
       { emoji: '🧂', name: 'Gewürzglas' },
       { emoji: '🫗', name: 'Saftflasche' },
+      { emoji: '🍯', name: 'Honigglas' },
+      { emoji: '🫒', name: 'Olivenglas' },
     ],
   },
   papier: {
@@ -45,6 +51,10 @@ export const CATEGORIES = {
       { emoji: '🗞️', name: 'Zeitschrift' },
       { emoji: '✉️', name: 'Briefumschlag' },
       { emoji: '🗒️', name: 'Notizheft' },
+      { emoji: '📄', name: 'Prospekt' },
+      { emoji: '🎁', name: 'Geschenkpapier' },
+      { emoji: '🗓️', name: 'Alter Kalender' },
+      { emoji: '🧻', name: 'Klopapierrolle (leer)', tip: 'Die leere Papprolle ist Pappe – Papiertonne.' },
     ],
   },
   bio: {
@@ -61,6 +71,11 @@ export const CATEGORIES = {
       { emoji: '🌿', name: 'Gartenabfall' },
       { emoji: '🥕', name: 'Gemüsereste' },
       { emoji: '🍞', name: 'Altbrot' },
+      { emoji: '🍂', name: 'Laub' },
+      { emoji: '🥔', name: 'Kartoffelschalen' },
+      { emoji: '🍵', name: 'Teebeutel', tip: 'Teebeutel samt Papierhülle dürfen in die Biotonne.' },
+      { emoji: '💐', name: 'Schnittblumen' },
+      { emoji: '🍋', name: 'Zitronenschale' },
     ],
   },
   rest: {
@@ -70,14 +85,21 @@ export const CATEGORIES = {
     tip: 'Was nicht verwertbar ist: Hygieneartikel, Kehricht, kaputtes Trinkglas.',
     color: '#9aa6b8',
     items: [
-      { emoji: '🍕', name: 'Pizzakarton (fettig)' },
-      { emoji: '💡', name: 'Glühbirne' },
+      { emoji: '🍕', name: 'Pizzakarton (fettig)', tip: 'Fettige Pizzakartons – Restmüll. Nur saubere Pappe gehört ins Papier.' },
+      { emoji: '💡', name: 'Glühbirne', tip: 'Alte Glühbirnen – Restmüll. Energiespar- und LED-Lampen – Sondermüll.' },
       { emoji: '🩹', name: 'Pflaster' },
       { emoji: '🧼', name: 'Seifenreste' },
-      { emoji: '🍬', name: 'Bonbonpapier' },
       { emoji: '🖊️', name: 'Kugelschreiber' },
       { emoji: '🪥', name: 'Zahnbürste' },
-      { emoji: '🥂', name: 'Trinkglas (kaputt)' },
+      { emoji: '🥂', name: 'Trinkglas (kaputt)', tip: 'Trinkgläser schmelzen anders als Flaschenglas – Restmüll, nie Glascontainer.' },
+      { emoji: '🪣', name: 'Kunststoffeimer', tip: 'Die Gelbe Tonne ist nur für Verpackungen – ein Eimer ist keine. Restmüll oder Wertstoffhof.' },
+      { emoji: '🧾', name: 'Kassenbon', tip: 'Kassenbons sind Thermopapier – Restmüll, nicht Papiertonne.' },
+      { emoji: '🪞', name: 'Spiegel', tip: 'Spiegelglas ist beschichtet – Restmüll, nie Glascontainer.' },
+      { emoji: '🫖', name: 'Keramik-Teekanne', tip: 'Keramik und Porzellan gehören in den Restmüll, nicht zum Glas.' },
+      { emoji: '🚬', name: 'Zigarettenstummel' },
+      { emoji: '🕯️', name: 'Kerzenreste' },
+      { emoji: '🐈', name: 'Katzenstreu', tip: 'Katzenstreu – auch „kompostierbare“ – gehört in den Restmüll.' },
+      { emoji: '📸', name: 'Alte Fotos', tip: 'Fotopapier ist beschichtet – Restmüll, nicht Papier.' },
     ],
   },
   sonder: {
@@ -95,6 +117,9 @@ export const CATEGORIES = {
       { emoji: '📱', name: 'Altes Handy' },
       { emoji: '💻', name: 'Elektroschrott' },
       { emoji: '🛢️', name: 'Altöl' },
+      { emoji: '🌡️', name: 'Quecksilber-Thermometer' },
+      { emoji: '💅', name: 'Nagellack' },
+      { emoji: '🧯', name: 'Feuerlöscher' },
     ],
   },
 };
