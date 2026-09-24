@@ -3,34 +3,34 @@
 // Flow: Start -> Preview -> Game -> (LevelUp -> Transition -> Preview -> Game)* -> End
 
 import { CATEGORIES } from './game-data.js';
-import { CONFIG, getScoreThreshold } from './game-config.js';
+import { CONFIG } from './game-config.js';
 import { state, resetState } from '../state/game-state.js';
 import { showScreen } from '../ui/screen-manager.js';
 import { resetHUD, updateScore, updateCombo, bumpCombo, updateLevel, updateHotspot } from '../ui/hud.js';
 import { showPause, hidePause, showLevelUpFlash } from '../ui/overlay-manager.js';
-import { floatPoints, flashBin, animateItemSort } from '../effects/animation-manager.js';
+import { binHtml } from '../ui/bin-view.js';
+import { applyScene } from '../ui/scene.js';
+import { iconHtml } from '../ui/icons.js';
+import { floatPoints, flashBin, hintCorrectBin, animateItemSort, shakeScreen, flashVignette, showBanner } from '../effects/animation-manager.js';
+import { burstAt, confettiRain } from '../effects/particle-manager.js';
+import { sfx } from '../effects/audio-manager.js';
+import { vibrate } from '../effects/haptic-manager.js';
 import { startTimer, stopTimer } from './game-timer.js';
 import { getHighscore, setHighscore } from '../storage/storage-bridge.js';
 import { earnCoins, grantBonus, getBalance } from '../economy/coin-manager.js';
 import { getHotspotForLevel } from '../level/level-definitions.js';
 import { getLevelFallTime, getLevelSpawnDelay, getItemsToComplete, hotspotChanges } from '../level/level-manager.js';
-import { setCurrentHotspot, getHotspotBinPreview } from '../hotspot/hotspot-manager.js';
+import { setCurrentHotspot } from '../hotspot/hotspot-manager.js';
 import { showDeliverySequence, showResultsScreen, showHub } from '../base/hub-manager.js';
 import { renderShop } from '../shop/shop-screen.js';
+
+const COMBO_MILESTONES = { 5: 'Combo ×5', 8: 'Combo ×8', 10: 'Max Combo!' };
 
 // ── Render bins at bottom ──
 function renderBins() {
   const row = document.getElementById('bins-row');
   if (!row) return;
-  const arrows = ['◀ LINKS', '⬇ MITTE', 'RECHTS ▶'];
-  row.innerHTML = state.activeBins.map((key, i) => {
-    const c = CATEGORIES[key];
-    return `<div class="bin ${c.cls}" id="bin-${i}">
-      <div class="bin-arrow">${arrows[i]}</div>
-      <div class="bin-icon">${c.icon}</div>
-      <div class="bin-label">${c.name}</div>
-    </div>`;
-  }).join('');
+  row.innerHTML = state.activeBins.map((key, i) => binHtml(key, i, 'bin-' + i)).join('');
 }
 
 // ── Set bins from hotspot ──
@@ -57,19 +57,16 @@ function showLevelPreview() {
   setText('preview-name', hotspot.name);
   setText('preview-desc', hotspot.description);
 
-  // Render preview bins with staggered animation
   const previewBins = document.getElementById('preview-bins');
   if (previewBins) {
-    const binData = getHotspotBinPreview(hotspot);
-    previewBins.innerHTML = binData.map(b =>
-      `<div class="preview-bin ${b.cls}">
-        <div class="preview-bin-arrow">${b.direction}</div>
-        <div class="preview-bin-icon">${b.icon}</div>
-        <div class="preview-bin-name">${b.name}</div>
-      </div>`
-    ).join('');
+    previewBins.innerHTML = hotspot.categories
+      .slice(0, CONFIG.ACTIVE_BINS_COUNT)
+      .map((key, i) => binHtml(key, i))
+      .join('');
   }
 
+  applyScene('screen-preview', hotspot.id);
+  applyScene('screen-game', hotspot.id);
   showScreen('screen-preview');
 }
 
@@ -85,6 +82,7 @@ function showTransition(fromHotspot, toHotspot, callback) {
   setText('transition-to-icon', toHotspot.icon);
   setText('transition-to-name', toHotspot.name);
 
+  applyScene('screen-transition', toHotspot.id);
   showScreen('screen-transition');
 
   // Short dynamic transition, then callback
@@ -170,21 +168,23 @@ function spawnItem() {
   const zone = document.getElementById('fall-zone');
   if (!zone) return;
 
-  // Create item element with dynamic spawn position
-  const spawnX = getSpawnXPercent();
+  const fallTime = getLevelFallTime(state.level);
   const el = document.createElement('div');
   el.className = 'swipe-item spawn';
-  el.style.left = spawnX + '%';
-  el.style.top = '18%';
-  el.innerHTML = `<div class="item-emoji">${item.emoji}</div><div class="item-name">${item.name}</div>`;
+  el.style.left = getSpawnXPercent() + '%';
+  el.style.top = '15%';
+  el.innerHTML = `<div class="item-fall" style="--fall:${fallTime}ms">
+      <div class="item-token">${iconHtml(item.emoji, 'item-icon')}</div>
+      <div class="item-name">${item.name}</div>
+    </div>`;
   zone.appendChild(el);
   state.itemEl = el;
 
-  // Remove spawn class after animation (350ms) so inline transform (swipe) works
+  // Remove spawn class after animation so inline transform (swipe) works
   setTimeout(() => el.classList.remove('spawn'), 360);
 
   // Auto-fall timer (no swipe = center bin) - uses level-specific timing
-  armFallTimer(getLevelFallTime(state.level));
+  armFallTimer(fallTime);
 
   // Reset swipe hints
   const hintLeft = document.getElementById('hint-left');
@@ -211,12 +211,13 @@ export function sortItem(binIndex) {
   if (!state.gameActive || !state.currentItem) return;
   clearTimeout(state.fallTimer);
 
+  const correctKey = state.currentItem.bin;
   const targetBin = state.activeBins[binIndex];
-  const isCorrect = targetBin === state.currentItem.bin;
+  const isCorrect = targetBin === correctKey;
   const binEl = document.getElementById('bin-' + binIndex);
 
-  // Animate item falling to bin
-  animateItemSort(state.itemEl, binIndex);
+  sfx.whoosh();
+  animateItemSort(state.itemEl, binEl);
 
   if (isCorrect) {
     state.correctCount++;
@@ -229,14 +230,30 @@ export function sortItem(binIndex) {
     updateScore(state.score);
     updateCombo(state.combo);
     bumpCombo();
-    flashBin(binEl, true);
-    floatPoints('+' + pts, true, binEl);
+    setTimeout(() => {
+      flashBin(binEl, true);
+      floatPoints('+' + pts, true, binEl);
+      burstAt(binEl, { color: CATEGORIES[correctKey].color, count: 10 + state.combo * 2 });
+      sfx.correct(state.combo);
+    }, CONFIG.ITEM_SORT_ANIM * 0.7);
+    vibrate('light');
+
+    if (COMBO_MILESTONES[state.combo]) {
+      showBanner(COMBO_MILESTONES[state.combo], state.combo >= 8 ? 'fire' : 'combo');
+      sfx.combo();
+      vibrate('double');
+    }
   } else {
     state.combo = 1;
     state.timeLeft = Math.max(state.timeLeft - CONFIG.TIME_PENALTY_WRONG, 0);
     updateCombo(1);
     flashBin(binEl, false);
     floatPoints('-' + CONFIG.TIME_PENALTY_WRONG + 's', false, binEl);
+    hintCorrectBin(document.getElementById('bin-' + state.activeBins.indexOf(correctKey)));
+    shakeScreen(document.getElementById('screen-game'));
+    flashVignette('wrong');
+    sfx.wrong();
+    vibrate('heavy');
   }
 
   state.currentItem = null;
@@ -246,6 +263,13 @@ export function sortItem(binIndex) {
   if (!hotspotChanged) {
     setTimeout(() => spawnItem(), getLevelSpawnDelay(state.level));
   }
+}
+
+function celebrateLevelUp() {
+  showLevelUpFlash(state.level);
+  confettiRain(36);
+  sfx.levelUp();
+  vibrate('long');
 }
 
 // ── Level Up ── returns true when the hotspot changes (game frozen until startLevel)
@@ -270,13 +294,12 @@ function checkLevelUp() {
     // Hotspot changes: freeze game, show transition, then preview
     state.inTransition = true;
     clearTimeout(state.fallTimer);
-    if (state.itemEl && state.itemEl.parentNode) state.itemEl.remove();
     state.currentItem = null;
 
     state.currentHotspot = nextHotspot;
     setCurrentHotspot(nextHotspot);
 
-    showLevelUpFlash(state.level);
+    celebrateLevelUp();
 
     // After flash, show transition
     setTimeout(() => {
@@ -293,7 +316,7 @@ function checkLevelUp() {
 
   updateLevel(state.level);
   applyHotspotBins();
-  showLevelUpFlash(state.level);
+  celebrateLevelUp();
   return false;
 }
 
@@ -326,6 +349,7 @@ function endGame() {
   stopTimer();
   clearTimeout(state.fallTimer);
   if (state.itemEl && state.itemEl.parentNode) state.itemEl.remove();
+  sfx.gameOver();
 
   // Calculate coins (score coins + combo bonus)
   const comboBonus = grantBonus(state.maxCombo * 2);
@@ -368,5 +392,5 @@ export function openShop() {
 
 export function openAvatar() {
   // TODO [P2]: Show avatar screen
-  alert('Avatar kommt bald!');
+  showBanner('Avatar kommt bald!', 'info');
 }

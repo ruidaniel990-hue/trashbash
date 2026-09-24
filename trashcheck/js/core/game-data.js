@@ -1,11 +1,12 @@
 // ── Trash Categories & Items ──
-// Each category has: name (display), icon (emoji), cls (CSS class), items array
+// Each category has: name (display), icon (emoji), cls (CSS class), color (effects), items array
 
 export const CATEGORIES = {
   gelb: {
     name: 'Gelbe Tonne',
-    icon: '🟡',
+    icon: '♻️',
     cls: 'bin-gelb',
+    color: '#ffd23f',
     items: [
       { emoji: '🛍️', name: 'Plastiktüte' },
       { emoji: '🧴', name: 'Shampooflasche' },
@@ -14,26 +15,26 @@ export const CATEGORIES = {
       { emoji: '🍫', name: 'Schokopack' },
       { emoji: '🧃', name: 'Getränkekarton' },
       { emoji: '🪣', name: 'Kunststoffeimer' },
-      { emoji: '🧽', name: 'Verpackungsfolie' },
     ],
   },
   glas: {
     name: 'Glascontainer',
-    icon: '🫙',
+    icon: '🍾',
     cls: 'bin-glas',
+    color: '#2fcf74',
     items: [
-      { emoji: '🍾', name: 'Weinflasche' },
-      { emoji: '🫙', name: 'Einmachglas' },
+      { emoji: '🍾', name: 'Sektflasche' },
+      { emoji: '🫙', name: 'Marmeladenglas' },
       { emoji: '🍶', name: 'Glasflasche' },
-      { emoji: '🥂', name: 'Sektflasche' },
-      { emoji: '🧪', name: 'Laborfläschchen' },
-      { emoji: '💊', name: 'Medizinflasche' },
+      { emoji: '🧂', name: 'Gewürzglas' },
+      { emoji: '🫗', name: 'Saftflasche' },
     ],
   },
   papier: {
     name: 'Papiertonne',
     icon: '📦',
     cls: 'bin-papier',
+    color: '#3d8bff',
     items: [
       { emoji: '📰', name: 'Zeitung' },
       { emoji: '📦', name: 'Karton' },
@@ -47,6 +48,7 @@ export const CATEGORIES = {
     name: 'Biotonne',
     icon: '🌱',
     cls: 'bin-bio',
+    color: '#b9793d',
     items: [
       { emoji: '🍌', name: 'Bananenschale' },
       { emoji: '🥚', name: 'Eierschale' },
@@ -61,20 +63,23 @@ export const CATEGORIES = {
     name: 'Restmüll',
     icon: '🗑️',
     cls: 'bin-rest',
+    color: '#9aa6b8',
     items: [
       { emoji: '🍕', name: 'Pizzakarton (fettig)' },
       { emoji: '💡', name: 'Glühbirne' },
-      { emoji: '🩺', name: 'Pflaster' },
+      { emoji: '🩹', name: 'Pflaster' },
       { emoji: '🧼', name: 'Seifenreste' },
       { emoji: '🍬', name: 'Bonbonpapier' },
       { emoji: '🖊️', name: 'Kugelschreiber' },
       { emoji: '🪥', name: 'Zahnbürste' },
+      { emoji: '🥂', name: 'Trinkglas (kaputt)' },
     ],
   },
   sonder: {
     name: 'Sondermüll',
     icon: '☢️',
     cls: 'bin-sonder',
+    color: '#ff4d5e',
     items: [
       { emoji: '🔋', name: 'Batterie' },
       { emoji: '🎨', name: 'Lackreste' },

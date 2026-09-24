@@ -1,31 +1,62 @@
-@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800;900&display=swap');
-
-/* ── Reset & Variables ── */
+/* ── Reset & Tokens ── */
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 :root {
-  --bg: #0a0e1a;
-  --surface: #111827;
-  --surface2: #1a2332;
-  --border: #1e3a5f;
-  --cyan: #00d4ff;
-  --cyan-glow: rgba(0, 212, 255, 0.3);
-  --yellow: #ffcc00;
-  --yellow-glow: rgba(255, 204, 0, 0.35);
-  --green: #00cc66;
-  --green-glow: rgba(0, 204, 102, 0.3);
-  --red: #ff4444;
-  --text: #e8f4fd;
-  --muted: #6b8ca4;
+  color-scheme: dark;
+  --bg: #0b1020;
+  --bg-2: #121a33;
+  --surface: rgba(255, 255, 255, 0.06);
+  --surface-2: rgba(255, 255, 255, 0.1);
+  --surface-solid: #161f3b;
+  --line: rgba(255, 255, 255, 0.12);
+  --text: #f2f6ff;
+  --muted: #93a1c6;
+  --accent: #2ee59d;
+  --accent-deep: #129a5f;
+  --accent-ink: #032615;
+  --cyan: #3fd0ff;
+  --gold: #ffc83d;
+  --gold-deep: #c98a08;
+  --red: #ff4d5e;
+  --orange: #ff8a3d;
+
+  --display: 'Lilita One', 'Arial Rounded MT Bold', 'Trebuchet MS', system-ui, sans-serif;
+  --body: 'Nunito', system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  --radius: 20px;
+  --shadow-lg: 0 18px 40px rgba(0, 0, 0, 0.45);
 }
 
 html, body {
   height: 100%;
   overflow: hidden;
-  font-family: 'Nunito', -apple-system, sans-serif;
+  font-family: var(--body);
   background: var(--bg);
   color: var(--text);
   touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  background:
+    radial-gradient(120% 60% at 50% 0%, #1b2752 0%, transparent 60%),
+    radial-gradient(80% 50% at 50% 100%, #0f2a2a 0%, transparent 70%),
+    var(--bg);
+}
+
+button { font-family: var(--body); color: inherit; }
+:focus-visible { outline: 3px solid var(--cyan); outline-offset: 3px; }
+
+/* Twemoji icons sized like text */
+.ic {
+  display: inline-block;
+  width: 1.15em;
+  height: 1.15em;
+  vertical-align: -0.2em;
+  object-fit: contain;
+  user-select: none;
+  -webkit-user-drag: none;
+  pointer-events: none;
 }
 
 /* ── Screen System ── */
@@ -36,6 +67,25 @@ html, body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 24px;
+  padding: max(24px, env(safe-area-inset-top)) 20px max(24px, env(safe-area-inset-bottom));
+  overflow: hidden;
 }
 .screen.hidden { display: none; }
+.screen > * { position: relative; z-index: 1; }
+
+.credits {
+  position: absolute !important;
+  right: 10px;
+  bottom: max(6px, env(safe-area-inset-bottom));
+  font-size: 0.55rem;
+  color: rgba(147, 161, 198, 0.45);
+  pointer-events: none;
+  z-index: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+}
