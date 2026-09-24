@@ -47,16 +47,13 @@ export function showResultsScreen(results) {
     ? Math.round((results.correctCount / results.totalItems) * 100)
     : 0;
 
-  // Combo bonus: extra coins for high max combo
-  const comboBonus = Math.floor(results.maxCombo * 2);
-
   const errors = results.totalItems - results.correctCount;
 
   setText('results-correct', results.correctCount);
   setText('results-errors', errors);
   setText('results-accuracy', accuracy + '%');
   setText('results-score', results.score);
-  setText('results-combo-bonus', '+' + comboBonus);
+  setText('results-combo-bonus', '+' + results.comboBonus);
   setText('results-coins', '+' + results.coinsEarned);
   setText('results-level', 'Level ' + results.level);
 

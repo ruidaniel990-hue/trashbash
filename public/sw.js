@@ -1,7 +1,7 @@
 // Trash bash Service Worker - Offline Support & Caching
-const CACHE_NAME = 'trashbash-v2.0.0';
-const RUNTIME_CACHE = 'trashbash-runtime-v2.0.0';
-const API_CACHE = 'trashbash-api-v2.0.0';
+const CACHE_NAME = 'trashbash-v2.1.0';
+const RUNTIME_CACHE = 'trashbash-runtime-v2.1.0';
+const API_CACHE = 'trashbash-api-v2.1.0';
 
 const STATIC_ASSETS = [
   '/',
@@ -85,15 +85,18 @@ self.addEventListener('fetch', (event) => {
         })
     );
   } 
-  // HTML Pages - Cache First
+  // HTML Pages - Network First, damit Updates sofort ankommen
   else if (request.mode === 'navigate') {
     event.respondWith(
-      caches.match(request)
-        .then((response) => response || fetch(request))
-        .catch(() => {
-          // Fallback zur Index Seite bei Offline
-          return caches.match('/index.html');
-        })
+      networkFirst(request).then((response) => response || caches.match('/index.html'))
+    );
+  }
+  // Code (JS/CSS/HTML) - Network First, Cache nur als Offline-Fallback
+  else if (request.method === 'GET' && /\.(js|mjs|css|html)$/.test(url.pathname)) {
+    event.respondWith(
+      networkFirst(request).then((response) =>
+        response || new Response('Offline - Resource not available', { status: 503 })
+      )
     );
   }
   // Static Assets - Cache First
@@ -129,6 +132,20 @@ self.addEventListener('fetch', (event) => {
     );
   }
 });
+
+// Returns the network response (and refreshes the cache), or the cached copy when offline
+async function networkFirst(request) {
+  try {
+    const response = await fetch(request);
+    if (response && response.status === 200) {
+      const clonedResponse = response.clone();
+      caches.open(RUNTIME_CACHE).then((cache) => cache.put(request, clonedResponse));
+    }
+    return response;
+  } catch (error) {
+    return caches.match(request);
+  }
+}
 
 // Background Sync - Sync pending requests when online
 self.addEventListener('sync', (event) => {

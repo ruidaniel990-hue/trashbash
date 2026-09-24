@@ -11,13 +11,12 @@ import { showPause, hidePause, showLevelUpFlash } from '../ui/overlay-manager.js
 import { floatPoints, flashBin, animateItemSort } from '../effects/animation-manager.js';
 import { startTimer, stopTimer } from './game-timer.js';
 import { getHighscore, setHighscore } from '../storage/storage-bridge.js';
-import { earnCoins, getBalance } from '../economy/coin-manager.js';
+import { earnCoins, grantBonus, getBalance } from '../economy/coin-manager.js';
 import { getHotspotForLevel } from '../level/level-definitions.js';
 import { getLevelFallTime, getLevelSpawnDelay, getItemsToComplete, hotspotChanges } from '../level/level-manager.js';
 import { setCurrentHotspot, getHotspotBinPreview } from '../hotspot/hotspot-manager.js';
 import { showDeliverySequence, showResultsScreen, showHub } from '../base/hub-manager.js';
 import { renderShop } from '../shop/shop-screen.js';
-import { playScratchEffect } from '../effects/audio-manager.js';
 
 // ── Render bins at bottom ──
 function renderBins() {
@@ -126,6 +125,7 @@ export function startLevel() {
   const zone = document.getElementById('fall-zone');
   if (zone) zone.querySelectorAll('.swipe-item').forEach(e => e.remove());
   hidePause();
+  state.inTransition = false;
 
   // Apply hotspot's bins
   applyHotspotBins();
@@ -158,7 +158,7 @@ function getSpawnXPercent() {
 
 // ── Spawn Item ──
 function spawnItem() {
-  if (!state.gameActive) return;
+  if (!state.gameActive || state.inTransition) return;
 
   // Pick random item from one of the active bins
   const binKey = state.activeBins[Math.floor(Math.random() * state.activeBins.length)];
@@ -184,18 +184,26 @@ function spawnItem() {
   setTimeout(() => el.classList.remove('spawn'), 360);
 
   // Auto-fall timer (no swipe = center bin) - uses level-specific timing
-  clearTimeout(state.fallTimer);
-  state.fallTimer = setTimeout(() => {
-    if (state.gameActive && !state.paused && state.currentItem) {
-      sortItem(1);
-    }
-  }, getLevelFallTime(state.level));
+  armFallTimer(getLevelFallTime(state.level));
 
   // Reset swipe hints
   const hintLeft = document.getElementById('hint-left');
   const hintRight = document.getElementById('hint-right');
   if (hintLeft) hintLeft.classList.remove('show');
   if (hintRight) hintRight.classList.remove('show');
+}
+
+let fallDeadline = 0;
+let fallRemaining = 0;
+
+function armFallTimer(ms) {
+  clearTimeout(state.fallTimer);
+  fallDeadline = Date.now() + ms;
+  state.fallTimer = setTimeout(() => {
+    if (state.gameActive && !state.paused && state.currentItem) {
+      sortItem(1);
+    }
+  }, ms);
 }
 
 // ── Sort item into bin (0=left, 1=center, 2=right) ──
@@ -231,17 +239,19 @@ export function sortItem(binIndex) {
     floatPoints('-' + CONFIG.TIME_PENALTY_WRONG + 's', false, binEl);
   }
 
-  // Level up check on correct answers
-  if (isCorrect) checkLevelUp();
-
   state.currentItem = null;
-  setTimeout(() => spawnItem(), getLevelSpawnDelay(state.level));
+
+  // Level up check on correct answers; a hotspot change resumes via startLevel()
+  const hotspotChanged = isCorrect && checkLevelUp();
+  if (!hotspotChanged) {
+    setTimeout(() => spawnItem(), getLevelSpawnDelay(state.level));
+  }
 }
 
-// ── Level Up ──
+// ── Level Up ── returns true when the hotspot changes (game frozen until startLevel)
 function checkLevelUp() {
   state.itemsSinceLevel++;
-  if (state.itemsSinceLevel < state.itemsForNextLevel) return;
+  if (state.itemsSinceLevel < state.itemsForNextLevel) return false;
 
   // Level complete
   const prevLevel = state.level;
@@ -257,7 +267,8 @@ function checkLevelUp() {
   const nextHotspot = getHotspotForLevel(state.level);
 
   if (hotspotChanges(prevLevel, state.level)) {
-    // Hotspot changes: pause game, show transition, then preview
+    // Hotspot changes: freeze game, show transition, then preview
+    state.inTransition = true;
     clearTimeout(state.fallTimer);
     if (state.itemEl && state.itemEl.parentNode) state.itemEl.remove();
     state.currentItem = null;
@@ -273,34 +284,32 @@ function checkLevelUp() {
         showLevelPreview();
       });
     }, CONFIG.LEVEL_UP_FLASH_DURATION);
-
-  } else {
-    // Same hotspot: just update bins and continue
-    state.currentHotspot = nextHotspot;
-    setCurrentHotspot(nextHotspot);
-
-    updateLevel(state.level);
-    applyHotspotBins();
-    showLevelUpFlash(state.level);
+    return true;
   }
+
+  // Same hotspot: just update bins and continue
+  state.currentHotspot = nextHotspot;
+  setCurrentHotspot(nextHotspot);
+
+  updateLevel(state.level);
+  applyHotspotBins();
+  showLevelUpFlash(state.level);
+  return false;
 }
 
 // ── Pause / Resume ──
 export function togglePause() {
-  if (!state.gameActive) return;
+  if (!state.gameActive || state.inTransition) return;
   state.paused = !state.paused;
 
   if (state.paused) {
     showPause(state.level, state.score);
     clearTimeout(state.fallTimer);
+    fallRemaining = Math.max(0, fallDeadline - Date.now());
   } else {
     hidePause();
-    // Restart fall timer for current item
-    if (state.currentItem) {
-      state.fallTimer = setTimeout(() => {
-        if (state.gameActive && state.currentItem) sortItem(1);
-      }, getLevelFallTime(state.level));
-    }
+    // Resume with the remaining fall time, not a fresh one
+    if (state.currentItem) armFallTimer(fallRemaining);
   }
 }
 
@@ -318,8 +327,9 @@ function endGame() {
   clearTimeout(state.fallTimer);
   if (state.itemEl && state.itemEl.parentNode) state.itemEl.remove();
 
-  // Calculate coins
-  const coinsEarned = earnCoins(state.score);
+  // Calculate coins (score coins + combo bonus)
+  const comboBonus = grantBonus(state.maxCombo * 2);
+  const coinsEarned = earnCoins(state.score) + comboBonus;
 
   // Highscore check
   const prevHs = getHighscore();
@@ -334,13 +344,13 @@ function endGame() {
     maxCombo: state.maxCombo,
     level: state.level,
     coinsEarned,
+    comboBonus,
     isNewHighscore: isNewHs,
     hotspot: state.currentHotspot,
   };
 
-  // Delivery sequence, then scratch plays ON the results screen
+  // Delivery sequence, then results screen
   showDeliverySequence(results, () => {
-    playScratchEffect();  // Scratch starts as results screen appears
     showResultsScreen(results);
   });
 }
@@ -348,11 +358,6 @@ function endGame() {
 // ── Go to Hub (called from results screen) ──
 export function goToHub() {
   showHub();
-}
-
-// ── Replay last run (same hotspot/level) ──
-export function replayLastRun() {
-  startGame();
 }
 
 // ── Navigation from Hub ──

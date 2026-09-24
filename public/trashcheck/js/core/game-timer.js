@@ -18,7 +18,7 @@ export function stopTimer() {
 }
 
 function tick(onTimeUp) {
-  if (!state.gameActive || state.paused) return;
+  if (!state.gameActive || state.paused || state.inTransition) return;
 
   state.timeLeft -= CONFIG.TICK_INTERVAL / 1000;
 

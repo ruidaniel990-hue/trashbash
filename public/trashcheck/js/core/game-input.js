@@ -18,6 +18,19 @@ export function setupInput(zone, onSort) {
   zone.addEventListener('mousedown', handleMouseDown);
   zone.addEventListener('mousemove', handleMouseMove);
   zone.addEventListener('mouseup', handleMouseUp);
+
+  // Keyboard (desktop): arrows map to left / center / right bin
+  document.addEventListener('keydown', handleKeyDown);
+}
+
+const KEY_TO_BIN = { ArrowLeft: 0, ArrowDown: 1, ArrowRight: 2 };
+
+function handleKeyDown(e) {
+  const bin = KEY_TO_BIN[e.key];
+  if (bin === undefined || e.repeat) return;
+  if (!state.gameActive || state.paused || !state.currentItem) return;
+  e.preventDefault();
+  onSortCallback?.(bin);
 }
 
 // ── Touch handlers ──
@@ -62,6 +75,7 @@ function handleMouseMove(e) {
   const dx = e.clientX - state.swipeStartX;
   const dy = e.clientY - state.swipeStartY;
   moveItemWithSwipe(dx, dy);
+  updateHints(dx, dy);
   highlightTargetBin(dx, dy);
 }
 
