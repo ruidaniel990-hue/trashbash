@@ -1,11 +1,12 @@
 // ── Trash Categories & Items ──
-// Each category has: name (display), icon (emoji), cls (CSS class), color (effects), items array
+// Each category has: name (display), icon (emoji), cls (CSS class), tip (shown on mistakes), color (effects), items array
 
 export const CATEGORIES = {
   gelb: {
     name: 'Gelbe Tonne',
     icon: '♻️',
     cls: 'bin-gelb',
+    tip: 'Verpackungen aus Plastik, Metall und Getränkekartons – leer, nicht gespült.',
     color: '#ffd23f',
     items: [
       { emoji: '🛍️', name: 'Plastiktüte' },
@@ -21,6 +22,7 @@ export const CATEGORIES = {
     name: 'Glascontainer',
     icon: '🍾',
     cls: 'bin-glas',
+    tip: 'Nur Flaschen und Gläser – Trinkgläser und Glühbirnen gehören in den Restmüll.',
     color: '#2fcf74',
     items: [
       { emoji: '🍾', name: 'Sektflasche' },
@@ -34,6 +36,7 @@ export const CATEGORIES = {
     name: 'Papiertonne',
     icon: '📦',
     cls: 'bin-papier',
+    tip: 'Papier, Pappe und Kartons – fettige Pizzakartons aber in den Restmüll.',
     color: '#3d8bff',
     items: [
       { emoji: '📰', name: 'Zeitung' },
@@ -48,6 +51,7 @@ export const CATEGORIES = {
     name: 'Biotonne',
     icon: '🌱',
     cls: 'bin-bio',
+    tip: 'Obst-, Gemüse- und Gartenreste, Kaffeesatz und Eierschalen.',
     color: '#b9793d',
     items: [
       { emoji: '🍌', name: 'Bananenschale' },
@@ -63,6 +67,7 @@ export const CATEGORIES = {
     name: 'Restmüll',
     icon: '🗑️',
     cls: 'bin-rest',
+    tip: 'Was nicht verwertbar ist: Hygieneartikel, Kehricht, kaputtes Trinkglas.',
     color: '#9aa6b8',
     items: [
       { emoji: '🍕', name: 'Pizzakarton (fettig)' },
@@ -79,6 +84,7 @@ export const CATEGORIES = {
     name: 'Sondermüll',
     icon: '☢️',
     cls: 'bin-sonder',
+    tip: 'Batterien, Chemikalien, Elektroschrott – zum Wertstoffhof, nie in den Hausmüll.',
     color: '#ff4d5e',
     items: [
       { emoji: '🔋', name: 'Batterie' },

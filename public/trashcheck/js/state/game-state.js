@@ -30,6 +30,13 @@ export const state = {
   activeBins: [],    // 3 category keys
   currentItem: null, // { emoji, name, bin }
 
+  // Run extras
+  effects: { timeBonusCorrect: 0, comboShield: 0, coinMultiplier: 1 }, // from equipped shop items
+  shieldsLeft: 0,     // combo shields left this level
+  mistakes: [],       // { emoji, name, bin } of wrong or missed items
+  tipsShown: {},      // category keys whose tip was shown this run
+  timerStarted: false,
+
   // DOM references (set during gameplay)
   itemEl: null,
   fallTimer: null,
@@ -57,6 +64,11 @@ export function resetState() {
   state.currentHotspot = null;
   state.activeBins = [];
   state.currentItem = null;
+  state.effects = { timeBonusCorrect: 0, comboShield: 0, coinMultiplier: 1 };
+  state.shieldsLeft = 0;
+  state.mistakes = [];
+  state.tipsShown = {};
+  state.timerStarted = false;
   state.itemEl = null;
   state.fallTimer = null;
   state.swipeStartX = 0;

@@ -8,8 +8,8 @@ export function getBalance() {
   return getCoins();
 }
 
-export function earnCoins(score) {
-  const amount = calculateCoins(score);
+export function earnCoins(score, multiplier = 1) {
+  const amount = Math.round(calculateCoins(score) * multiplier);
   storageAddCoins(amount);
   return amount;
 }

@@ -6,12 +6,12 @@ import { CATEGORIES } from './game-data.js';
 import { CONFIG } from './game-config.js';
 import { state, resetState } from '../state/game-state.js';
 import { showScreen } from '../ui/screen-manager.js';
-import { resetHUD, updateScore, updateCombo, bumpCombo, updateLevel, updateHotspot } from '../ui/hud.js';
+import { resetHUD, updateScore, updateCombo, bumpCombo, updateLevel, updateHotspot, updateShield } from '../ui/hud.js';
 import { showPause, hidePause, showLevelUpFlash } from '../ui/overlay-manager.js';
 import { binHtml } from '../ui/bin-view.js';
 import { applyScene } from '../ui/scene.js';
 import { iconHtml } from '../ui/icons.js';
-import { floatPoints, flashBin, hintCorrectBin, animateItemSort, shakeScreen, flashVignette, showBanner } from '../effects/animation-manager.js';
+import { floatPoints, flashBin, hintCorrectBin, animateItemSort, animateItemMiss, shakeScreen, flashVignette, showBanner, showTip } from '../effects/animation-manager.js';
 import { burstAt, confettiRain } from '../effects/particle-manager.js';
 import { sfx } from '../effects/audio-manager.js';
 import { vibrate } from '../effects/haptic-manager.js';
@@ -23,8 +23,12 @@ import { getLevelFallTime, getLevelSpawnDelay, getItemsToComplete, hotspotChange
 import { setCurrentHotspot } from '../hotspot/hotspot-manager.js';
 import { showDeliverySequence, showResultsScreen, showHub } from '../base/hub-manager.js';
 import { renderShop } from '../shop/shop-screen.js';
+import { getActiveEffects } from '../shop/shop-manager.js';
+import { trackDaily } from '../progress/daily.js';
+import { recordLevel, getSelectedStartLevel, getStartSpots } from '../progress/unlocks.js';
 
 const COMBO_MILESTONES = { 5: 'Combo ×5', 8: 'Combo ×8', 10: 'Max Combo!' };
+const GOLDEN_CHANCE = 0.08;
 
 // ── Render bins at bottom ──
 function renderBins() {
@@ -90,7 +94,13 @@ function showTransition(fromHotspot, toHotspot, callback) {
 }
 
 // ── Initialize start screen ──
+let onStartShown = null;
+export function setStartRenderer(fn) {
+  onStartShown = fn;
+}
+
 export function initStart() {
+  if (onStartShown) onStartShown();
   const hs = getHighscore();
   const hsEl = document.getElementById('hs-display');
   if (hsEl) hsEl.textContent = hs;
@@ -106,6 +116,10 @@ export function initStart() {
 export function startGame() {
   resetState();
   resetHUD();
+  state.level = getSelectedStartLevel();
+  state.effects = getActiveEffects();
+  state.shieldsLeft = state.effects.comboShield;
+  updateShield(state.shieldsLeft);
 
   // Set up first level's hotspot
   const hotspot = getHotspotForLevel(state.level);
@@ -132,8 +146,9 @@ export function startLevel() {
 
   showScreen('screen-game');
 
-  // Start timer only on first level (timer persists across levels)
-  if (state.level === 1) {
+  // Timer starts once per run and keeps running across levels
+  if (!state.timerStarted) {
+    state.timerStarted = true;
     startTimer(() => endGame());
   }
 
@@ -162,7 +177,8 @@ function spawnItem() {
   const binKey = state.activeBins[Math.floor(Math.random() * state.activeBins.length)];
   const cat = CATEGORIES[binKey];
   const item = cat.items[Math.floor(Math.random() * cat.items.length)];
-  state.currentItem = { ...item, bin: binKey };
+  const golden = state.totalItems >= 3 && Math.random() < GOLDEN_CHANCE;
+  state.currentItem = { ...item, bin: binKey, golden };
   state.totalItems++;
 
   const zone = document.getElementById('fall-zone');
@@ -170,12 +186,12 @@ function spawnItem() {
 
   const fallTime = getLevelFallTime(state.level);
   const el = document.createElement('div');
-  el.className = 'swipe-item spawn';
+  el.className = 'swipe-item spawn' + (golden ? ' is-golden' : '');
   el.style.left = getSpawnXPercent() + '%';
   el.style.top = '15%';
   el.innerHTML = `<div class="item-fall" style="--fall:${fallTime}ms">
       <div class="item-token">${iconHtml(item.emoji, 'item-icon')}</div>
-      <div class="item-name">${item.name}</div>
+      <div class="item-name">${golden ? '✨ ' : ''}${item.name}</div>
     </div>`;
   zone.appendChild(el);
   state.itemEl = el;
@@ -183,7 +199,7 @@ function spawnItem() {
   // Remove spawn class after animation so inline transform (swipe) works
   setTimeout(() => el.classList.remove('spawn'), 360);
 
-  // Auto-fall timer (no swipe = center bin) - uses level-specific timing
+  // Not swiped before the fall ends = missed (level-specific timing)
   armFallTimer(fallTime);
 
   // Reset swipe hints
@@ -199,11 +215,59 @@ let fallRemaining = 0;
 function armFallTimer(ms) {
   clearTimeout(state.fallTimer);
   fallDeadline = Date.now() + ms;
-  state.fallTimer = setTimeout(() => {
-    if (state.gameActive && !state.paused && state.currentItem) {
-      sortItem(1);
-    }
-  }, ms);
+  state.fallTimer = setTimeout(missItem, ms);
+}
+
+function rewardDaily(event) {
+  const reward = trackDaily(event);
+  if (!reward) return;
+  grantBonus(reward);
+  setTimeout(() => {
+    showBanner('Tagesaufgabe geschafft! +' + reward + ' 🪙', 'daily');
+    sfx.combo();
+  }, 500);
+}
+
+// A mistake breaks the combo unless a shield from the equipment absorbs it.
+function breakCombo() {
+  if (state.shieldsLeft > 0 && state.combo > 1) {
+    state.shieldsLeft--;
+    updateShield(state.shieldsLeft);
+    showBanner('🛡️ Combo geschützt', 'shield');
+    return;
+  }
+  state.combo = 1;
+  updateCombo(1);
+}
+
+function registerMistake(item, chosenBinEl) {
+  const correctBinEl = document.getElementById('bin-' + state.activeBins.indexOf(item.bin));
+  breakCombo();
+  state.timeLeft = Math.max(state.timeLeft - CONFIG.TIME_PENALTY_WRONG, 0);
+  state.mistakes.push({ emoji: item.emoji, name: item.name, bin: item.bin });
+
+  if (chosenBinEl) flashBin(chosenBinEl, false);
+  floatPoints('-' + CONFIG.TIME_PENALTY_WRONG + 's', false, chosenBinEl || correctBinEl);
+  hintCorrectBin(correctBinEl);
+  if (!state.tipsShown[item.bin]) {
+    state.tipsShown[item.bin] = true;
+    showTip(CATEGORIES[item.bin]);
+  }
+  shakeScreen(document.getElementById('screen-game'));
+  flashVignette('wrong');
+  sfx.wrong();
+  vibrate('heavy');
+}
+
+// Not swiping in time counts as a miss, never as a free center-bin guess.
+function missItem() {
+  if (!state.gameActive || state.paused || !state.currentItem) return;
+  const item = state.currentItem;
+  animateItemMiss(state.itemEl);
+  showBanner('Verpasst!', 'miss');
+  registerMistake(item, null);
+  state.currentItem = null;
+  setTimeout(() => spawnItem(), getLevelSpawnDelay(state.level));
 }
 
 // ── Sort item into bin (0=left, 1=center, 2=right) ──
@@ -211,7 +275,8 @@ export function sortItem(binIndex) {
   if (!state.gameActive || !state.currentItem) return;
   clearTimeout(state.fallTimer);
 
-  const correctKey = state.currentItem.bin;
+  const item = state.currentItem;
+  const correctKey = item.bin;
   const targetBin = state.activeBins[binIndex];
   const isCorrect = targetBin === correctKey;
   const binEl = document.getElementById('bin-' + binIndex);
@@ -221,11 +286,12 @@ export function sortItem(binIndex) {
 
   if (isCorrect) {
     state.correctCount++;
-    const pts = CONFIG.BASE_POINTS * state.combo;
+    const pts = CONFIG.BASE_POINTS * state.combo * (item.golden ? 2 : 1);
     state.score += pts;
     state.combo = Math.min(state.combo + 1, CONFIG.MAX_COMBO);
     state.maxCombo = Math.max(state.maxCombo, state.combo);
-    state.timeLeft = Math.min(state.timeLeft + CONFIG.TIME_BONUS_CORRECT, CONFIG.GAME_DURATION);
+    const timeBonus = CONFIG.TIME_BONUS_CORRECT + state.effects.timeBonusCorrect;
+    state.timeLeft = Math.min(state.timeLeft + timeBonus, CONFIG.GAME_DURATION);
 
     updateScore(state.score);
     updateCombo(state.combo);
@@ -233,10 +299,17 @@ export function sortItem(binIndex) {
     setTimeout(() => {
       flashBin(binEl, true);
       floatPoints('+' + pts, true, binEl);
-      burstAt(binEl, { color: CATEGORIES[correctKey].color, count: 10 + state.combo * 2 });
+      burstAt(binEl, { color: item.golden ? '#ffd23f' : CATEGORIES[correctKey].color, count: 10 + state.combo * 2 + (item.golden ? 16 : 0) });
       sfx.correct(state.combo);
+      if (item.golden) sfx.coin();
     }, CONFIG.ITEM_SORT_ANIM * 0.7);
     vibrate('light');
+    if (item.golden) showBanner('✨ Goldener Müll ×2', 'golden');
+
+    rewardDaily({ type: 'correct', bin: correctKey });
+    rewardDaily({ type: 'combo', value: state.combo });
+    rewardDaily({ type: 'score', value: state.score });
+    if (item.golden) rewardDaily({ type: 'golden' });
 
     if (COMBO_MILESTONES[state.combo]) {
       showBanner(COMBO_MILESTONES[state.combo], state.combo >= 8 ? 'fire' : 'combo');
@@ -244,16 +317,7 @@ export function sortItem(binIndex) {
       vibrate('double');
     }
   } else {
-    state.combo = 1;
-    state.timeLeft = Math.max(state.timeLeft - CONFIG.TIME_PENALTY_WRONG, 0);
-    updateCombo(1);
-    flashBin(binEl, false);
-    floatPoints('-' + CONFIG.TIME_PENALTY_WRONG + 's', false, binEl);
-    hintCorrectBin(document.getElementById('bin-' + state.activeBins.indexOf(correctKey)));
-    shakeScreen(document.getElementById('screen-game'));
-    flashVignette('wrong');
-    sfx.wrong();
-    vibrate('heavy');
+    registerMistake(item, binEl);
   }
 
   state.currentItem = null;
@@ -283,8 +347,13 @@ function checkLevelUp() {
   state.itemsSinceLevel = 0;
   state.itemsForNextLevel = getItemsToComplete(state.level);
 
-  // Bonus time
+  // Bonus time, fresh combo shields, progress
   state.timeLeft = Math.min(state.timeLeft + CONFIG.TIME_BONUS_LEVEL_UP, CONFIG.GAME_DURATION);
+  state.shieldsLeft = state.effects.comboShield;
+  updateShield(state.shieldsLeft);
+  const newSpot = recordLevel(state.level) && getStartSpots().find(spot => spot.level === state.level)?.name;
+  rewardDaily({ type: 'level', value: state.level });
+  if (newSpot) setTimeout(() => showBanner('Neuer Startort: ' + newSpot, 'daily'), 1100);
 
   // Check if hotspot changes
   const prevHotspot = state.currentHotspot;
@@ -353,7 +422,7 @@ function endGame() {
 
   // Calculate coins (score coins + combo bonus)
   const comboBonus = grantBonus(state.maxCombo * 2);
-  const coinsEarned = earnCoins(state.score) + comboBonus;
+  const coinsEarned = earnCoins(state.score, state.effects.coinMultiplier) + comboBonus;
 
   // Highscore check
   const prevHs = getHighscore();
@@ -369,6 +438,8 @@ function endGame() {
     level: state.level,
     coinsEarned,
     comboBonus,
+    coinMultiplier: state.effects.coinMultiplier,
+    mistakes: state.mistakes,
     isNewHighscore: isNewHs,
     hotspot: state.currentHotspot,
   };

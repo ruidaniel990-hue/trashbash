@@ -31,9 +31,6 @@
   15% { opacity: 1; }
   to   { transform: translate(24px, -85vh); opacity: 0; }
 }
-@keyframes nudgeDown { 0%, 100% { transform: translateY(-2px); } 50% { transform: translateY(4px); } }
-@keyframes nudgeLeft { 0%, 100% { transform: translateX(2px); } 50% { transform: translateX(-4px); } }
-@keyframes nudgeRight { 0%, 100% { transform: translateX(-2px); } 50% { transform: translateX(4px); } }
 @keyframes playPulse {
   0%, 100% { box-shadow: 0 6px 0 var(--accent-deep), 0 14px 26px rgba(46, 229, 157, 0.28), inset 0 2px 0 rgba(255, 255, 255, 0.45); }
   50% { box-shadow: 0 6px 0 var(--accent-deep), 0 14px 40px rgba(46, 229, 157, 0.55), inset 0 2px 0 rgba(255, 255, 255, 0.45); }
@@ -331,4 +328,29 @@
   .scene-ambient, .start-rain, .level-up-rays { display: none; }
   .item-token { animation: none; }
   .screen.jolt { animation: none; }
+}
+
+/* Banner variants */
+.banner-miss .banner-text {
+  font-size: 1.6rem;
+  background: linear-gradient(180deg, #ff7a86, #d72c40);
+  box-shadow: 0 5px 0 #8a1323, 0 18px 40px rgba(0, 0, 0, 0.45);
+}
+.banner-shield .banner-text {
+  font-size: 1.4rem;
+  background: linear-gradient(180deg, #7fe2ff, #1d8fd6);
+}
+.banner-golden .banner-text {
+  font-size: 1.5rem;
+  color: #3a2600;
+  background: linear-gradient(180deg, #fff0a6, #ffc83d);
+  box-shadow: 0 5px 0 var(--gold-deep), 0 0 40px rgba(255, 200, 61, 0.7);
+}
+.banner-daily { top: 20%; }
+.banner-daily .banner-text {
+  font-size: 1.3rem;
+  color: var(--accent-ink);
+  background: linear-gradient(180deg, #7ff5c4, var(--accent));
+  box-shadow: 0 5px 0 var(--accent-deep), 0 0 40px rgba(46, 229, 157, 0.6);
+  transform: none;
 }

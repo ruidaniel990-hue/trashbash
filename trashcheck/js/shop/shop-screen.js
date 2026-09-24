@@ -4,6 +4,7 @@
 import { SLOTS } from './shop-data.js';
 import { getShopDisplayItems, purchaseItem, equipItem, getEquippedInSlot, unequipSlot } from './shop-manager.js';
 import { getBalance } from '../economy/coin-manager.js';
+import { sfx } from '../effects/audio-manager.js';
 
 export function renderShop() {
   const container = document.getElementById('shop-items');
@@ -76,7 +77,10 @@ export function renderShop() {
   container.querySelectorAll('[data-action="buy"]').forEach(btn => {
     btn.addEventListener('click', () => {
       const result = purchaseItem(btn.dataset.id);
-      if (result.ok) renderShop(); // re-render
+      if (!result.ok) return;
+      equipItem(btn.dataset.id);
+      sfx.coin();
+      renderShop();
     });
   });
 
