@@ -18,6 +18,19 @@ export function setupInput(zone, onSort) {
   zone.addEventListener('mousedown', handleMouseDown);
   zone.addEventListener('mousemove', handleMouseMove);
   zone.addEventListener('mouseup', handleMouseUp);
+
+  // Keyboard (desktop): arrows map to left / center / right bin
+  document.addEventListener('keydown', handleKeyDown);
+}
+
+const KEY_TO_BIN = { ArrowLeft: 0, ArrowDown: 1, ArrowRight: 2 };
+
+function handleKeyDown(e) {
+  const bin = KEY_TO_BIN[e.key];
+  if (bin === undefined || e.repeat) return;
+  if (!state.gameActive || state.paused || !state.currentItem) return;
+  e.preventDefault();
+  onSortCallback?.(bin);
 }
 
 // ── Touch handlers ──
@@ -62,6 +75,7 @@ function handleMouseMove(e) {
   const dx = e.clientX - state.swipeStartX;
   const dy = e.clientY - state.swipeStartY;
   moveItemWithSwipe(dx, dy);
+  updateHints(dx, dy);
   highlightTargetBin(dx, dy);
 }
 
@@ -79,8 +93,9 @@ function handleMouseUp(e) {
 
 function moveItemWithSwipe(dx, dy) {
   if (!state.itemEl) return;
-  // Item follows finger 1:1 in pixels — smooth and responsive
-  state.itemEl.style.transform = `translateX(${dx}px)`;
+  // Item follows finger 1:1 in pixels and tilts toward the swipe direction
+  state.itemEl.style.transition = 'none';
+  state.itemEl.style.transform = `translateX(${dx}px) rotate(${Math.max(-18, Math.min(18, dx * 0.08))}deg)`;
 
   // Vertical movement for downward swipe
   if (dy > 30 && Math.abs(dx) < CONFIG.SWIPE_THRESHOLD) {
@@ -124,5 +139,9 @@ function resolveSwipe(dx, dy) {
   } else if (dy > CONFIG.SWIPE_THRESHOLD) {
     onSortCallback(1); // down swipe = center bin
   }
-  // else: no clear swipe, let fall timer handle
+  else if (state.itemEl) {
+    // No clear swipe: spring back, let the fall timer handle it
+    state.itemEl.style.transition = 'transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)';
+    state.itemEl.style.transform = '';
+  }
 }

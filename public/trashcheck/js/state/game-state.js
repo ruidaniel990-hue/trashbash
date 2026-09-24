@@ -18,6 +18,7 @@ export const state = {
   // Game flow
   gameActive: false,
   paused: false,
+  inTransition: false, // hotspot change: timer and spawning frozen until startLevel()
 
   // Level & Hotspot
   level: 1,
@@ -49,6 +50,7 @@ export function resetState() {
   state.timerInterval = null;
   state.gameActive = true;
   state.paused = false;
+  state.inTransition = false;
   state.level = 1;
   state.itemsSinceLevel = 0;
   state.itemsForNextLevel = CONFIG.BASE_ITEMS_PER_LEVEL;

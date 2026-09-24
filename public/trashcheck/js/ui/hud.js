@@ -11,6 +11,7 @@ function getEls() {
     els = {
       score: document.getElementById('hud-score'),
       combo: document.getElementById('combo-val'),
+      comboChip: document.getElementById('hud-combo'),
       timer: document.getElementById('hud-timer'),
       timerBar: document.getElementById('timer-bar'),
       level: document.getElementById('hud-level'),
@@ -21,16 +22,29 @@ function getEls() {
   return els;
 }
 
+function comboTier(value) {
+  if (value >= 8) return 3;
+  if (value >= 5) return 2;
+  if (value >= 3) return 1;
+  return 0;
+}
+
 export function updateScore(value) {
-  getEls().score.textContent = value;
+  const el = getEls().score;
+  el.textContent = value;
+  el.classList.remove('bump');
+  void el.offsetWidth;
+  el.classList.add('bump');
 }
 
 export function updateCombo(value) {
-  getEls().combo.textContent = '×' + value;
+  const e = getEls();
+  e.combo.textContent = '×' + value;
+  if (e.comboChip) e.comboChip.dataset.tier = comboTier(value);
 }
 
 export function bumpCombo() {
-  const el = getEls().combo;
+  const el = getEls().comboChip || getEls().combo;
   el.classList.remove('bump');
   void el.offsetWidth; // force reflow
   el.classList.add('bump');
@@ -38,11 +52,14 @@ export function bumpCombo() {
 
 export function updateTimer(timeLeft) {
   const e = getEls();
+  const ratio = Math.max(0, Math.min(1, timeLeft / CONFIG.GAME_DURATION));
   e.timer.textContent = Math.ceil(timeLeft);
-  e.timerBar.style.width = ((timeLeft / CONFIG.GAME_DURATION) * 100) + '%';
-  if (timeLeft <= 10) {
-    e.timerBar.classList.add('warn');
-  }
+  e.timerBar.style.width = (ratio * 100) + '%';
+  // Hue slides from green (140) to red (0) as time runs out
+  e.timerBar.style.setProperty('--hue', Math.round(140 * Math.min(1, ratio * 1.6)));
+  const warn = timeLeft <= 10;
+  e.timerBar.classList.toggle('warn', warn);
+  e.timer.parentElement.classList.toggle('warn', warn);
 }
 
 export function updateLevel(level) {
@@ -63,10 +80,8 @@ export function updatePauseInfo(level, score) {
 export function resetHUD() {
   const e = getEls();
   e.score.textContent = '0';
-  e.combo.textContent = '×1';
-  e.timer.textContent = String(CONFIG.GAME_DURATION);
-  e.timerBar.style.width = '100%';
-  e.timerBar.classList.remove('warn');
+  updateCombo(1);
+  updateTimer(CONFIG.GAME_DURATION);
   e.level.textContent = 'Level 1';
   if (e.hotspot) e.hotspot.textContent = '';
 }

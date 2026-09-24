@@ -1,17 +1,18 @@
-// ── Haptic Manager [P3] ──
-// Vibration API for mobile feedback.
+// ── Haptic Manager ──
+// Vibration feedback on supporting phones (no-op elsewhere).
+
+const PATTERNS = {
+  light: [12],
+  heavy: [45],
+  double: [15, 50, 15],
+  long: [70],
+};
 
 export function vibrate(pattern = 'light') {
-  // TODO [P3]: Trigger haptic feedback
-  // Patterns: 'light' (correct), 'heavy' (wrong), 'double' (combo), 'long' (levelup)
   if (!navigator.vibrate) return;
-
-  const patterns = {
-    light: [15],
-    heavy: [40],
-    double: [15, 50, 15],
-    long: [80],
-  };
-
-  navigator.vibrate(patterns[pattern] || patterns.light);
+  try {
+    navigator.vibrate(PATTERNS[pattern] || PATTERNS.light);
+  } catch {
+    // Some embedded browsers throw instead of ignoring the call.
+  }
 }

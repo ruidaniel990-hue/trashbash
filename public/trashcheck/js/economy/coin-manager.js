@@ -14,6 +14,11 @@ export function earnCoins(score) {
   return amount;
 }
 
+export function grantBonus(amount) {
+  storageAddCoins(amount);
+  return amount;
+}
+
 export function spendCoins(amount) {
   const balance = getCoins();
   if (balance < amount) return false;
